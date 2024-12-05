@@ -109,3 +109,7 @@ config LOONGARCH_PCH_MSI
 
 config LOONGARCH_EXTIOI
     bool
+
+config ALLWINNER_F1C100S_INTC
+    bool
+
