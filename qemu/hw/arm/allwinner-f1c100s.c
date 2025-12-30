@@ -45,7 +45,7 @@
 #include "qemu/units.h"
 #include "hw/firmware/smbios.h"
 
-struct arm_boot_info f1c100s_binfo;
+struct arm_boot_info f1c100s_binfo = { 0 };
 
 const hwaddr allwinner_f1c100s_memmap[] = {
     [AW_F1C100S_DEV_SRAM_A1]    = 0x00000000,
@@ -120,6 +120,7 @@ static void aw_f1c100s_init(Object *obj)
 {
     AwF1C100SState *s = AW_F1C100S(obj);
 
+    printf("call %s()\n", __func__);
     s->memmap = allwinner_f1c100s_memmap;
     object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm926"));
     object_initialize_child(obj, "spi[0]", &s->spi[0], TYPE_AW_SUN6I_SPI);
@@ -133,104 +134,66 @@ static void aw_f1c100s_init(Object *obj)
     object_initialize_child(obj, "i2c[0]", &s->i2c[0], TYPE_AW_I2C);
     object_initialize_child(obj, "i2c[1]", &s->i2c[1], TYPE_AW_I2C);
     object_initialize_child(obj, "i2c[2]", &s->i2c[2], TYPE_AW_I2C);
-    object_property_add_alias(obj, "identifier", OBJECT(&s->sid),
-                              "identifier");
-    object_property_add_alias(obj, "clk0-freq", OBJECT(&s->timer),
-                              "clk0-freq");
-    object_property_add_alias(obj, "clk1-freq", OBJECT(&s->timer),
-                              "clk1-freq");
+    object_property_add_alias(obj, "identifier", OBJECT(&s->sid), "identifier");
+    object_property_add_alias(obj, "clk0-freq", OBJECT(&s->timer), "clk0-freq");
+    object_property_add_alias(obj, "clk1-freq", OBJECT(&s->timer), "clk1-freq");
 }
 
 static void aw_f1c100s_realize(DeviceState *dev, Error **errp)
 {
+    int i = 0;
     AwF1C100SState *s = AW_F1C100S(dev);
-    int i;
 
-    /* CPU */
+    printf("call %s()\n", __func__);
     if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
+        printf("failed to realize CPU\n");
         return;
     }
 
-    /* SRAM */
-    memory_region_init_ram(&s->sram_a1, OBJECT(dev), "sram a1",
-                            40 * KiB, &error_abort);
-    memory_region_add_subregion(get_system_memory(),
-                           s->memmap[AW_F1C100S_DEV_SRAM_A1], &s->sram_a1);
+    memory_region_init_ram(&s->sram_a1, OBJECT(dev), "sram a1", 40 * KiB, &error_abort);
+    memory_region_add_subregion(get_system_memory(), s->memmap[AW_F1C100S_DEV_SRAM_A1], &s->sram_a1);
+    memory_region_init_ram(&s->sram_logbuf, OBJECT(dev), "sram logbuf", 4096, &error_abort);
+    memory_region_add_subregion(get_system_memory(), s->memmap[AW_F1C100S_DEV_LOG_BUF], &s->sram_logbuf);
 
-    /*
-     * I found this at mainline uboot common/Kconfig
-     * need provide more info at here
-     */
-    /* log buf? */
-    memory_region_init_ram(&s->sram_logbuf, OBJECT(dev), "sram logbuf",
-                           4096, &error_abort);
-    memory_region_add_subregion(get_system_memory(),
-                           s->memmap[AW_F1C100S_DEV_LOG_BUF], &s->sram_logbuf);
-
-    /* clock control */
     sysbus_realize(SYS_BUS_DEVICE(&s->ccu), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0,
-                    s->memmap[AW_F1C100S_DEV_CCU]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, s->memmap[AW_F1C100S_DEV_CCU]);
 
-    /* interrupt control */
     sysbus_realize(SYS_BUS_DEVICE(&s->intc), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->intc), 0,
-                    s->memmap[AW_F1C100S_DEV_INTC]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->intc), 0,
-                    qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_IRQ));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->intc), 0, s->memmap[AW_F1C100S_DEV_INTC]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->intc), 0, qdev_get_gpio_in(DEVICE(&s->cpu), ARM_CPU_IRQ));
     qdev_pass_gpios(DEVICE(&s->intc), dev, NULL);
 
-    /* timer */
     sysbus_realize(SYS_BUS_DEVICE(&s->timer), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->timer), 0,
-                    s->memmap[AW_F1C100S_DEV_TIMER]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 0,
-                       qdev_get_gpio_in(dev, IRQ_TIMER0));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 1,
-                       qdev_get_gpio_in(dev, IRQ_TIMER1));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 2,
-                       qdev_get_gpio_in(dev, IRQ_TIMER2));
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 3,
-                       qdev_get_gpio_in(dev, IRQ_WDOG));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->timer), 0, s->memmap[AW_F1C100S_DEV_TIMER]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 0, qdev_get_gpio_in(dev, IRQ_TIMER0));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 1, qdev_get_gpio_in(dev, IRQ_TIMER1));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 2, qdev_get_gpio_in(dev, IRQ_TIMER2));
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->timer), 3, qdev_get_gpio_in(dev, IRQ_WDOG));
 
-    /* Security Identifier */
     sysbus_realize(SYS_BUS_DEVICE(&s->sid), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->sid), 0, s->memmap[AW_F1C100S_DEV_SID]);
 
-    /* mmc0 */
-    object_property_set_link(OBJECT(&s->mmc[0]), "dma-memory",
-                             OBJECT(get_system_memory()), &error_fatal);
+    object_property_set_link(OBJECT(&s->mmc[0]), "dma-memory", OBJECT(get_system_memory()), &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(&s->mmc[0]), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc[0]), 0,
-                                   s->memmap[AW_F1C100S_DEV_MMC0]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc[0]), 0,
-                       qdev_get_gpio_in(DEVICE(dev), IRQ_MMC0));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc[0]), 0, s->memmap[AW_F1C100S_DEV_MMC0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc[0]), 0, qdev_get_gpio_in(DEVICE(dev), IRQ_MMC0));
+    object_property_add_alias(OBJECT(s), "sd-bus[0]", OBJECT(&s->mmc[0]), "sd-bus");
 
-    object_property_add_alias(OBJECT(s), "sd-bus[0]", OBJECT(&s->mmc[0]),
-                              "sd-bus");
-
-
-    /* mmc1 */
-    object_property_set_link(OBJECT(&s->mmc[1]), "dma-memory",
-                             OBJECT(get_system_memory()), &error_fatal);
+    object_property_set_link(OBJECT(&s->mmc[1]), "dma-memory", OBJECT(get_system_memory()), &error_fatal);
     sysbus_realize(SYS_BUS_DEVICE(&s->mmc[1]), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc[1]), 0,
-                                   s->memmap[AW_F1C100S_DEV_MMC1]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc[1]), 0,
-                       qdev_get_gpio_in(DEVICE(dev), IRQ_MMC1));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->mmc[1]), 0, s->memmap[AW_F1C100S_DEV_MMC1]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->mmc[1]), 0, qdev_get_gpio_in(DEVICE(dev), IRQ_MMC1));
 
-    object_property_add_alias(OBJECT(s), "sd-bus[1]", OBJECT(&s->mmc[1]),
-                              "sd-bus");
+    object_property_add_alias(OBJECT(s), "sd-bus[1]", OBJECT(&s->mmc[1]), "sd-bus");
 
-    /* spi0 */
     AwSun6iSpiState *spi_bus = &s->spi[0];
     sysbus_realize(SYS_BUS_DEVICE(spi_bus), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(spi_bus), 0, s->memmap[AW_F1C100S_DEV_SPI0]);
 
-    /* spi nor flash, default attach a w25q64 (8 MiB) */
     DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
-    DeviceState *spi_flash;
-    qemu_irq cs_line;
+    DeviceState *spi_flash = NULL;
+    qemu_irq cs_line = { 0 };
+
     if (dinfo) {
         spi_flash = qdev_new("w25q64");
         qdev_prop_set_drive(spi_flash, "drive", blk_by_legacy_dinfo(dinfo));
@@ -239,50 +202,33 @@ static void aw_f1c100s_realize(DeviceState *dev, Error **errp)
         sysbus_connect_irq(SYS_BUS_DEVICE(spi_bus), 0, cs_line);
     }
 
-    /* spi1 */
     sysbus_realize(SYS_BUS_DEVICE(&s->spi[1]), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[1]), 0,
-                    s->memmap[AW_F1C100S_DEV_SPI1]);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[1]), 0, s->memmap[AW_F1C100S_DEV_SPI1]);
 
-    /* UART x 3 */
-    SerialMM *smm;
+    SerialMM *smm = NULL;
     for (i = 0; i < 3; i++) {
         smm = SERIAL_MM(qdev_new(TYPE_SERIAL_MM));
         qdev_prop_set_chr(DEVICE(smm), "chardev", serial_hd(i));
         qdev_prop_set_uint8(DEVICE(smm), "regshift", 2);
         sysbus_realize_and_unref(SYS_BUS_DEVICE(smm), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(smm), 0,
-                        s->memmap[AW_F1C100S_DEV_UART0 + i]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(smm), 0,
-                        qdev_get_gpio_in(dev, IRQ_UART0 + i));
+        sysbus_mmio_map(SYS_BUS_DEVICE(smm), 0, s->memmap[AW_F1C100S_DEV_UART0 + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(smm), 0, qdev_get_gpio_in(dev, IRQ_UART0 + i));
     }
 
-    /* i2c 0 */
     sysbus_realize(SYS_BUS_DEVICE(&s->i2c[0]), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c[0]), 0,
-                    s->memmap[AW_F1C100S_DEV_TWI0]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[0]), 0,
-                       qdev_get_gpio_in(dev, IRQ_TWI0));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c[0]), 0, s->memmap[AW_F1C100S_DEV_TWI0]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[0]), 0, qdev_get_gpio_in(dev, IRQ_TWI0));
 
-    /* i2c 1 */
     sysbus_realize(SYS_BUS_DEVICE(&s->i2c[1]), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c[1]), 0,
-                    s->memmap[AW_F1C100S_DEV_TWI1]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[1]), 0,
-                       qdev_get_gpio_in(dev, IRQ_TWI1));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c[1]), 0, s->memmap[AW_F1C100S_DEV_TWI1]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[1]), 0, qdev_get_gpio_in(dev, IRQ_TWI1));
 
-    /* i2c 2 */
     sysbus_realize(SYS_BUS_DEVICE(&s->i2c[2]), &error_fatal);
-    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c[2]), 0,
-                    s->memmap[AW_F1C100S_DEV_TWI2]);
-    sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[2]), 0,
-                       qdev_get_gpio_in(dev, IRQ_TWI2));
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c[2]), 0, s->memmap[AW_F1C100S_DEV_TWI2]);
+    sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[2]), 0, qdev_get_gpio_in(dev, IRQ_TWI2));
 
-    /* Unimplemented devices */
     for (i = 0; i < ARRAY_SIZE(unimplemented); i++) {
-        create_unimplemented_device(unimplemented[i].device_name,
-                                    unimplemented[i].base,
-                                    unimplemented[i].size);
+        create_unimplemented_device(unimplemented[i].device_name, unimplemented[i].base, unimplemented[i].size);
     }
 }
 
@@ -290,6 +236,7 @@ static void aw_f1c100s_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
+    printf("call %s()\n", __func__);
     dc->realize = aw_f1c100s_realize;
 }
 
@@ -303,6 +250,7 @@ static const TypeInfo aw_f1c100s_type_info = {
 
 static void aw_f1c100s_register_types(void)
 {
+    printf("call %s()\n", __func__);
     type_register_static(&aw_f1c100s_type_info);
 }
 
@@ -313,14 +261,14 @@ static void aw_f1c100s_board_init(MachineState *machine)
     AwF1C100SState *f1c100s;
     char *filename;
 
-    /* Only allow arm926 for this board */
+    printf("call %s()\n", __func__);
     if (strcmp(machine->cpu_type, ARM_CPU_TYPE_NAME("arm926")) != 0) {
-        //error_report("This board can only be used with arm926 CPU");
+        printf("only arm926ejs supported\n");
         exit(1);
     }
 
     if (machine->ram_size > 64 * MiB) {
-        //error_report("this soc only support ram size < 64 MiB");
+        printf("only 64MB supported\n");
         exit(1);
     }
 
@@ -328,41 +276,27 @@ static void aw_f1c100s_board_init(MachineState *machine)
     object_property_add_child(OBJECT(machine), "soc", OBJECT(f1c100s));
     object_unref(OBJECT(f1c100s));
 
-    /* osc32k & osc24M use for timer */
     object_property_set_int(OBJECT(f1c100s), "clk0-freq", 32768, &error_abort);
-    object_property_set_int(OBJECT(f1c100s), "clk1-freq", 24 * 1000 * 1000,
-                            &error_abort);
+    object_property_set_int(OBJECT(f1c100s), "clk1-freq", 24 * 1000 * 1000, &error_abort);
 
-    /* Setup SID */
-    /* need dump from real soc */
     if (qemu_uuid_is_null(&f1c100s->sid.identifier)) {
-        qdev_prop_set_string(DEVICE(f1c100s), "identifier",
-                             "00000000-1111-2222-3333-000044556677");
+        qdev_prop_set_string(DEVICE(f1c100s), "identifier", "00000000-1111-2222-3333-000044556677");
     }
 
     qdev_realize(DEVICE(f1c100s), NULL, &error_abort);
 
-    /* SDRAM */
-    memory_region_add_subregion(get_system_memory(),
-                                f1c100s->memmap[AW_F1C100S_DEV_SDRAM],
-                                machine->ram);
-    /* fill some bad memory to pass uboot memtest */
+    memory_region_add_subregion(get_system_memory(), f1c100s->memmap[AW_F1C100S_DEV_SDRAM], machine->ram);
+
     if (machine->ram_size < (2 * GiB)) {
-        create_unimplemented_device("sdram[unused]",
-              f1c100s->memmap[AW_F1C100S_DEV_SDRAM] + machine->ram_size,
-              (2 * GiB) - machine->ram_size);
+        create_unimplemented_device("sdram[unused]", f1c100s->memmap[AW_F1C100S_DEV_SDRAM] + machine->ram_size, (2 * GiB) - machine->ram_size);
     }
 
-    /* bootrom */
-    memory_region_init_rom(&f1c100s->bootrom, NULL, "aw_f1c100s.bootrom",
-                           64 * KiB, &error_fatal);
-    memory_region_add_subregion(get_system_memory(),
-                           f1c100s->memmap[AW_F1C100S_DEV_BOOTROM],
-                           &f1c100s->bootrom);
+    memory_region_init_rom(&f1c100s->bootrom, NULL, "aw_f1c100s.bootrom", 64 * KiB, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), f1c100s->memmap[AW_F1C100S_DEV_BOOTROM], &f1c100s->bootrom);
+
     filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
     if (filename) {
-        load_image_targphys(filename, f1c100s->memmap[AW_F1C100S_DEV_BOOTROM],
-                            64 * KiB);
+        load_image_targphys(filename, f1c100s->memmap[AW_F1C100S_DEV_BOOTROM], 64 * KiB);
         g_free(filename);
         f1c100s_binfo.entry = f1c100s->memmap[AW_F1C100S_DEV_BOOTROM];
     }
@@ -374,7 +308,7 @@ static void aw_f1c100s_board_init(MachineState *machine)
 
 static void aw_f1c100s_machine_init(MachineClass *mc)
 {
-    mc->desc = "allwinner f1c100s (arm926)";
+    mc->desc = "Allwinner F1C100S (ARM926EJ-S)";
     mc->init = aw_f1c100s_board_init;
     mc->min_cpus = 1;
     mc->max_cpus = 1;
@@ -385,4 +319,4 @@ static void aw_f1c100s_machine_init(MachineClass *mc)
     mc->default_ram_id = "aw_f1c100s.ram";
 };
 
-DEFINE_MACHINE("allwinner-f1c100s", aw_f1c100s_machine_init)
+DEFINE_MACHINE("f1c100s", aw_f1c100s_machine_init)

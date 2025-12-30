@@ -36,13 +36,12 @@ enum {
     REG_PLL_PERIPH_CTRL = 0x28,
 };
 
-static uint64_t allwinner_f1c100s_ccu_read(void *opaque, hwaddr offset,
-                                      unsigned size)
+static uint64_t allwinner_f1c100s_ccu_read(void *opaque, hwaddr offset, unsigned size)
 {
+    uint32_t val = 0;
     const AwF1c100sClockCtlState *s = AW_F1C100S_CCU(opaque);
-    (void)s;
-    uint32_t val = 0x0;
 
+    printf("call %s(offset=0x%lx, size=%d)\n", __func__, offset, size);
     switch (offset) {
     case REG_PLL_CPU_CTL:
     case REG_PLL_AUDIO_CTL:
@@ -55,18 +54,19 @@ static uint64_t allwinner_f1c100s_ccu_read(void *opaque, hwaddr offset,
     default:
         return 0x0;
     }
+
+    return 0;
 }
 
-static void allwinner_f1c100s_ccu_write(void *opaque, hwaddr offset,
-                                   uint64_t val, unsigned size)
+static void allwinner_f1c100s_ccu_write(void *opaque, hwaddr offset,uint64_t val, unsigned size)
 {
     AwF1c100sClockCtlState *s = AW_F1C100S_CCU(opaque);
     (void)s;
 
+    printf("call %s(offset=0x%lx, val=0x%lx, size=%d)\n", __func__, offset, val, size);
     switch (offset) {
     default:
-        qemu_log_mask(LOG_UNIMP, "%s: unimplemented write offset 0x%04x\n",
-                      __func__, (uint32_t)offset);
+        qemu_log_mask(LOG_UNIMP, "%s: unimplemented write offset 0x%04x\n", __func__, (uint32_t)offset);
         break;
     }
 }
@@ -85,7 +85,8 @@ static const MemoryRegionOps allwinner_f1c100s_ccu_ops = {
 static void allwinner_f1c100s_ccu_reset(DeviceState *dev)
 {
     AwF1c100sClockCtlState *s = AW_F1C100S_CCU(dev);
-    (void)s;
+
+    printf("call %s()\n", __func__);
 }
 
 static void allwinner_f1c100s_ccu_init(Object *obj)
@@ -93,9 +94,8 @@ static void allwinner_f1c100s_ccu_init(Object *obj)
     SysBusDevice *sbd = SYS_BUS_DEVICE(obj);
     AwF1c100sClockCtlState *s = AW_F1C100S_CCU(obj);
 
-    /* Memory mapping */
-    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_f1c100s_ccu_ops, s,
-                          TYPE_AW_F1C100S_CCU, 0x400);
+    printf("call %s()\n", __func__);
+    memory_region_init_io(&s->iomem, OBJECT(s), &allwinner_f1c100s_ccu_ops, s, TYPE_AW_F1C100S_CCU, 0x400);
     sysbus_init_mmio(sbd, &s->iomem);
 }
 
@@ -109,20 +109,22 @@ static void allwinner_f1c100s_ccu_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
 
+    printf("call %s()\n", __func__);
     dc->reset = allwinner_f1c100s_ccu_reset;
     dc->vmsd = &allwinner_f1c100s_ccu_vmstate;
 }
 
 static const TypeInfo allwinner_f1c100s_ccu_info = {
-    .name          = TYPE_AW_F1C100S_CCU,
-    .parent        = TYPE_SYS_BUS_DEVICE,
+    .name = TYPE_AW_F1C100S_CCU,
+    .parent = TYPE_SYS_BUS_DEVICE,
     .instance_init = allwinner_f1c100s_ccu_init,
     .instance_size = sizeof(AwF1c100sClockCtlState),
-    .class_init    = allwinner_f1c100s_ccu_class_init,
+    .class_init = allwinner_f1c100s_ccu_class_init,
 };
 
 static void allwinner_f1c100s_ccu_register(void)
 {
+    printf("call %s()\n", __func__);
     type_register_static(&allwinner_f1c100s_ccu_info);
 }
 
