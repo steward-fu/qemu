@@ -8,6 +8,7 @@
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/ssi/allwinner-sun6i-spi.h"
 #include "hw/i2c/allwinner-i2c.h"
+#include "hw/char/allwinner-uart.h"
 
 #include "target/arm/cpu.h"
 #include "qom/object.h"
@@ -50,6 +51,7 @@ struct AwF1C100SState {
     AWI2CState i2c[3];
     AwSidState sid;
     AwSdHostState mmc[2];
+    AwUartState uart[3];
     MemoryRegion sram_a1;
     MemoryRegion sram_logbuf;
     MemoryRegion bootrom;

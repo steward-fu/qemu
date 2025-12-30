@@ -1,1 +1,4 @@
 qemu/build/
+**.o
+**.pyc
+**.wraplock

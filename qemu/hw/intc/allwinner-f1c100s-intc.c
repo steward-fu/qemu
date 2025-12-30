@@ -1,12 +1,8 @@
 /*
- * Allwinner f1c100s interrupt controller device emulation
- *
+ * Copyright (C) 2013 Li Guang
  * Copyright (C) 2023 Lu Hui <luhux76@gmail.com>
  * Copyright (C) 2023 zhaosx <shaoxi2010@qq.com>
- *
- * a lot of code copy from ./allwinner-a10-pit.c:
- * Copyright (C) 2013 Li Guang
- * Written by Li Guang <lig.fnst@cn.fujitsu.com>
+ * Copyright (C) 2025 Steward <steward.fu@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,7 +20,7 @@
 #include "migration/vmstate.h"
 #include "hw/intc/allwinner-f1c100s-intc.h"
 #include "hw/irq.h"
-#include "qemu/log.h"
+#include "qemu/aw_log.h"
 #include "qemu/module.h"
 
 enum {
@@ -41,12 +37,14 @@ enum {
 
 static void aw_f1c100s_intc_update(AwF1c100sIntcState *s)
 {
-    int i;
-    int zeroes;
-    int irq;
-    int irq_trigger  = 0;
-    s->vector = 0;
+    int i = 0;
+    int irq = 0;
+    int zeroes = 0;
+    int irq_trigger = 0;
 
+    trace("call %s()\n", __func__);
+
+    s->vector = 0;
     for (i = 0 ; i < 2; i++) {
         irq = ~s->mask[i] & s->enable[i];
         if (!s->vector) {
@@ -65,9 +63,12 @@ static void aw_f1c100s_intc_set_irq(void *opaque, int irq, int level)
 {
     AwF1c100sIntcState *s = opaque;
 
+    trace("call %s(irq=%d, level=%d)\n", __func__, irq, level);
+
     if (level) {
         set_bit(irq % 32, (void *)&s->pending[irq / 32]);
-    } else {
+    }
+    else {
         clear_bit(irq % 32, (void *)&s->pending[irq / 32]);
     }
 
@@ -77,6 +78,8 @@ static void aw_f1c100s_intc_set_irq(void *opaque, int irq, int level)
 static uint64_t aw_f1c100s_intc_read(void *opaque, hwaddr offset, unsigned size)
 {
     AwF1c100sIntcState *s = opaque;
+
+    trace("call %s(offset=0x%lx, size=%d)\n", __func__, offset, size);
 
     switch (offset) {
     case REG_VECTOR:
@@ -98,16 +101,18 @@ static uint64_t aw_f1c100s_intc_read(void *opaque, hwaddr offset, unsigned size)
     case REG_MASK1:
         return s->mask[1];
     default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%x\n",  __func__, (int)offset);
-        return 0x0;
+        error("invalid offset: 0x%lx\n", offset);
+        return 0;
     }
+
+    return 0;
 }
 
-static void aw_f1c100s_intc_write(void *opaque, hwaddr offset, uint64_t value,
-                             unsigned size)
+static void aw_f1c100s_intc_write(void *opaque, hwaddr offset, uint64_t value, unsigned size)
 {
     AwF1c100sIntcState *s = opaque;
+
+    trace("call %s(offset=0x%lx, value=0x%lx, size=%d)\n", __func__, offset, value, size);
 
     switch (offset) {
     case REG_BASE_ADDR:
@@ -135,8 +140,7 @@ static void aw_f1c100s_intc_write(void *opaque, hwaddr offset, uint64_t value,
         s->mask[1] = value;
         break;
     default:
-        qemu_log_mask(LOG_GUEST_ERROR,
-                      "%s: Bad offset 0x%x\n",  __func__, (int)offset);
+        error("invalid offset: 0x%lx\n", offset);
         break;
     }
 
@@ -157,21 +161,24 @@ static const VMStateDescription vmstate_aw_f1c100s_intc = {
 
 static void aw_f1c100s_intc_init(Object *obj)
 {
-    AwF1c100sIntcState *s = AW_F1C100S_INTC(obj);
     SysBusDevice *dev = SYS_BUS_DEVICE(obj);
+    AwF1c100sIntcState *s = AW_F1C100S_INTC(obj);
+
+    trace("call %s()\n", __func__);
 
     /* f1c100s have 41 irq */
     qdev_init_gpio_in(DEVICE(dev), aw_f1c100s_intc_set_irq, 41);
     sysbus_init_irq(dev, &s->parent_irq);
-    memory_region_init_io(&s->iomem, OBJECT(s), &aw_f1c100s_intc_ops, s,
-                          TYPE_AW_F1C100S_INTC, 0x400);
+    memory_region_init_io(&s->iomem, OBJECT(s), &aw_f1c100s_intc_ops, s, TYPE_AW_F1C100S_INTC, 0x400);
     sysbus_init_mmio(dev, &s->iomem);
 }
 
 static void aw_f1c100s_intc_reset(DeviceState *d)
 {
+    uint8_t i = 0;
     AwF1c100sIntcState *s = AW_F1C100S_INTC(d);
-    uint8_t i;
+
+    trace("call %s()\n", __func__);
 
     s->base_addr = 0;
     s->nmi_ctl = 0;
@@ -186,6 +193,8 @@ static void aw_f1c100s_intc_reset(DeviceState *d)
 static void aw_f1c100s_intc_class_init(ObjectClass *klass, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(klass);
+
+    trace("call %s()\n", __func__);
 
     dc->reset = aw_f1c100s_intc_reset;
     dc->desc = "allwinner f1c100s intc";
@@ -202,6 +211,8 @@ static const TypeInfo aw_f1c100s_intc_info = {
 
 static void aw_a10_register_types(void)
 {
+    trace("call %s()\n", __func__);
+
     type_register_static(&aw_f1c100s_intc_info);
 }
 
