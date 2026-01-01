@@ -997,8 +997,13 @@ if get_option('sdl1').enabled()
     link_args: sdl1_libs
   )
 
-  sdl1_image = dependency('SDL_image', required: get_option('sdl1_image'),
-                         method: 'pkg-config', kwargs: static_kwargs)
+#  sdl1_image = dependency('SDL_image', required: get_option('sdl1_image'),
+#                         method: 'pkg-config', kwargs: static_kwargs)
+
+  sdl1_image = declare_dependency(
+    compile_args: sdl1_cflags,
+    link_args: '-lSDL_image -lSDL'.split()
+  )
 else
   sdl2 = dependency('sdl2', required: get_option('sdl2'), kwargs: static_kwargs)
   sdl2_image = not_found
