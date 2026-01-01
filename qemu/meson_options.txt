@@ -181,12 +181,14 @@ option('pvrdma', type : 'feature', value : 'auto',
        description: 'Enable PVRDMA support')
 option('gtk', type : 'feature', value : 'auto',
        description: 'GTK+ user interface')
-option('sdl1', type : 'feature', value : 'auto',
+option('sdl1', type : 'feature', value : 'disabled',
        description: 'SDL v1.2 user interface')
+option('sdl1_image', type : 'feature', value : 'auto',
+       description: 'SDL v1.2 Image support for icons')
 option('sdl2', type : 'feature', value : 'auto',
        description: 'SDL v2.0 user interface')
-option('sdl_image', type : 'feature', value : 'auto',
-       description: 'SDL Image support for icons')
+option('sdl2_image', type : 'feature', value : 'auto',
+       description: 'SDL v2.0 Image support for icons')
 option('seccomp', type : 'feature', value : 'auto',
        description: 'seccomp support')
 option('smartcard', type : 'feature', value : 'auto',

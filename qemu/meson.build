@@ -982,34 +982,39 @@ if not get_option('brlapi').auto() or have_system
 endif
 
 sdl1 = not_found
-sdl_config = find_program('sdl-config', required: false)
-if sdl_config.found()
-  sdl_cflags = run_command(sdl_config, '--cflags', check: true).stdout().strip().split()
-  sdl_libs   = run_command(sdl_config, '--libs',   check: true).stdout().strip().split()
-
-  sdl1 = declare_dependency(
-    compile_args: sdl_cflags,
-    link_args: sdl_libs
-  )
-endif
+sdl1_image = not_found
 
 sdl2 = not_found
-if not get_option('sdl2').auto() or have_system
-  sdl2 = dependency('sdl2', required: get_option('sdl2'), kwargs: static_kwargs)
-  sdl_image = not_found
-endif
-if sdl2.found()
-  # work around 2.0.8 bug
-  sdl2 = declare_dependency(compile_args: '-Wno-undef',
-                           dependencies: sdl2)
-  sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
+sdl2_image = not_found
+
+if get_option('sdl1').enabled()
+  sdl1_config = find_program('sdl-config', required: false)
+  sdl1_cflags = run_command(sdl1_config, '--cflags', check: true).stdout().strip().split()
+  sdl1_libs   = run_command(sdl1_config, '--libs',   check: true).stdout().strip().split()
+
+  sdl1 = declare_dependency(
+    compile_args: sdl1_cflags,
+    link_args: sdl1_libs
+  )
+
+  sdl1_image = dependency('SDL_image', required: get_option('sdl1_image'),
                          method: 'pkg-config', kwargs: static_kwargs)
 else
-  if get_option('sdl_image').enabled()
+  sdl2 = dependency('sdl2', required: get_option('sdl2'), kwargs: static_kwargs)
+  sdl2_image = not_found
+endif
+
+if sdl2.found()
+  sdl2 = declare_dependency(compile_args: '-Wno-undef',
+                           dependencies: sdl2)
+  sdl2_image = dependency('SDL2_image', required: get_option('sdl2_image'),
+                         method: 'pkg-config', kwargs: static_kwargs)
+else
+  if get_option('sdl2_image').enabled()
     error('sdl-image required, but SDL was @0@'.format(
           get_option('sdl2').disabled() ? 'disabled' : 'not found'))
   endif
-  sdl_image = not_found
+  sdl2_image = not_found
 endif
 
 rbd = not_found
@@ -1892,8 +1897,9 @@ config_host_data.set('CONFIG_PROFILER', get_option('profiler'))
 config_host_data.set('CONFIG_RBD', rbd.found())
 config_host_data.set('CONFIG_RDMA', rdma.found())
 config_host_data.set('CONFIG_SDL1', sdl1.found())
+config_host_data.set('CONFIG_SDL1_IMAGE', sdl1_image.found())
 config_host_data.set('CONFIG_SDL2', sdl2.found())
-config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
+config_host_data.set('CONFIG_SDL2_IMAGE', sdl2_image.found())
 config_host_data.set('CONFIG_SECCOMP', seccomp.found())
 if seccomp.found()
   config_host_data.set('CONFIG_SECCOMP_SYSRAWRC', seccomp_has_sysrawrc)
@@ -3966,8 +3972,9 @@ if targetos == 'darwin'
   summary_info += {'vmnet.framework support': vmnet}
 endif
 summary_info += {'SDL v1.2 support':  sdl1}
+summary_info += {'SDL v1.2 image support': sdl1_image}
 summary_info += {'SDL v2.0 support':  sdl2}
-summary_info += {'SDL image support': sdl_image}
+summary_info += {'SDL v2.0 image support': sdl2_image}
 summary_info += {'GTK support':       gtk}
 summary_info += {'pixman':            pixman}
 summary_info += {'VTE support':       vte}

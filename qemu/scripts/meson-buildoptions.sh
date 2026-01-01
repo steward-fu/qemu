@@ -145,8 +145,9 @@ meson_options_help() {
   printf "%s\n" '  rdma            Enable RDMA-based migration'
   printf "%s\n" '  replication     replication support'
   printf "%s\n" '  sdl1            SDL v1.2 user interface'
+  printf "%s\n" '  sdl1-image      SDL v1.2 Image support for icons'
   printf "%s\n" '  sdl2            SDL v2.0 user interface'
-  printf "%s\n" '  sdl-image       SDL Image support for icons'
+  printf "%s\n" '  sdl2-image      SDL v2.0 Image support for icons'
   printf "%s\n" '  seccomp         seccomp support'
   printf "%s\n" '  selinux         SELinux support in qemu-nbd'
   printf "%s\n" '  slirp           libslirp user mode network backend support'
@@ -397,10 +398,12 @@ _meson_option_parse() {
     --disable-rng-none) printf "%s" -Drng_none=false ;;
     --enable-sdl1) printf "%s" -Dsdl1=enabled ;;
     --disable-sdl1) printf "%s" -Dsdl1=disabled ;;
+    --enable-sdl1-image) printf "%s" -Dsdl1_image=enabled ;;
+    --disable-sdl1-image) printf "%s" -Dsdl1_image=disabled ;;
     --enable-sdl2) printf "%s" -Dsdl2=enabled ;;
     --disable-sdl2) printf "%s" -Dsdl2=disabled ;;
-    --enable-sdl-image) printf "%s" -Dsdl_image=enabled ;;
-    --disable-sdl-image) printf "%s" -Dsdl_image=disabled ;;
+    --enable-sdl2-image) printf "%s" -Dsdl2_image=enabled ;;
+    --disable-sdl2-image) printf "%s" -Dsdl2_image=disabled ;;
     --enable-seccomp) printf "%s" -Dseccomp=enabled ;;
     --disable-seccomp) printf "%s" -Dseccomp=disabled ;;
     --enable-selinux) printf "%s" -Dselinux=enabled ;;

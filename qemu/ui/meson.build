@@ -113,8 +113,8 @@ endif
 
 if sdl1.found()
   sdl1_ss = ss.source_set()
-  sdl1_ss.add(sdl1, sdl_image, files(
-    'sdl1.c',
+  sdl1_ss.add(sdl1, sdl1_image, files(
+    'sdl1.c'
   ))
   ui_modules += {'sdl1' : sdl1_ss}
 endif
@@ -123,7 +123,7 @@ if sdl2.found()
   softmmu_ss.add(when: 'CONFIG_WIN32', if_true: files('win32-kbd-hook.c'))
 
   sdl2_ss = ss.source_set()
-  sdl2_ss.add(sdl2, sdl_image, pixman, glib, files(
+  sdl2_ss.add(sdl2, sdl2_image, pixman, glib, files(
     'sdl2-2d.c',
     'sdl2-input.c',
     'sdl2.c',
