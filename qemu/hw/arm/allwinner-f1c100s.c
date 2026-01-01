@@ -1,16 +1,9 @@
 /*
- * Allwinner F1C100S SoC emulation
- *
- * Copyright (C) 2023 Lu Hui <luhux76@gmail.com>
- * some code copy from ./allwinner-f1c100s.c
+ * Copyright (C) 2018 Mesih Kilinc <mesihkilinc@gmail.com>
+ * Copyright (C) 2018 Icenowy Zheng <icenowy@aosc.io>
  * Copyright (C) 2013 Li Guang
- * Written by Li Guang <lig.fnst@cn.fujitsu.com>
- * some code copy from linux kernel:
- * arch/arm/boot/dts/suniv-f1c100s.dtsi
- * Copyright 2018 Icenowy Zheng <icenowy@aosc.io>
- * Copyright 2018 Mesih Kilinc <mesihkilinc@gmail.com>
- * some code copy from mainline uboot:
- * common/Kconfig
+ * Copyright (C) 2023 Lu Hui <luhux76@gmail.com>
+ * Copyright (C) 2025 Steward <steward.fu@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -24,11 +17,11 @@
  */
 
 #include "qemu/osdep.h"
+#include "qemu/log.h"
 #include "qapi/error.h"
 #include "qemu/module.h"
 #include "qemu/datadir.h"
 #include "hw/sysbus.h"
-#include "hw/char/serial.h"
 #include "hw/arm/boot.h"
 #include "hw/arm/allwinner-f1c100s.h"
 #include "hw/misc/allwinner-f1c100s-ccu.h"
@@ -43,8 +36,10 @@
 #include "hw/usb/hcd-ohci.h"
 #include "hw/loader.h"
 #include "qemu/units.h"
+#include "qemu/aw_log.h"
 #include "hw/firmware/smbios.h"
 
+int aw_debug_level = FATAL_LEVEL;
 struct arm_boot_info f1c100s_binfo = { 0 };
 
 const hwaddr allwinner_f1c100s_memmap[] = {
@@ -73,11 +68,6 @@ static struct AwF1C100SUnimplemented {
     hwaddr base;
     hwaddr size;
 } unimplemented[] = {
-    /* allwinner uart have extra register for fifo, */
-    /* xboot's uart code use this region */
-    { "awuart0", 0x01C25020, 0x3E0 },
-    { "awuart1", 0x01C25420, 0x3E0 },
-    { "awuart2", 0x01C25820, 0x3E0 },
     { "sysctrl", 0x01C00000, 4 * KiB },
     { "dramc",   0x01C01000, 4 * KiB },
     { "dma",     0x01C02000, 4 * KiB },
@@ -120,7 +110,8 @@ static void aw_f1c100s_init(Object *obj)
 {
     AwF1C100SState *s = AW_F1C100S(obj);
 
-    printf("call %s()\n", __func__);
+    trace("call %s()\n", __func__);
+
     s->memmap = allwinner_f1c100s_memmap;
     object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm926"));
     object_initialize_child(obj, "spi[0]", &s->spi[0], TYPE_AW_SUN6I_SPI);
@@ -134,6 +125,9 @@ static void aw_f1c100s_init(Object *obj)
     object_initialize_child(obj, "i2c[0]", &s->i2c[0], TYPE_AW_I2C);
     object_initialize_child(obj, "i2c[1]", &s->i2c[1], TYPE_AW_I2C);
     object_initialize_child(obj, "i2c[2]", &s->i2c[2], TYPE_AW_I2C);
+    object_initialize_child(obj, "uart[0]", &s->uart[0], TYPE_AW_UART);
+    object_initialize_child(obj, "uart[1]", &s->uart[1], TYPE_AW_UART);
+    object_initialize_child(obj, "uart[2]", &s->uart[2], TYPE_AW_UART);
     object_property_add_alias(obj, "identifier", OBJECT(&s->sid), "identifier");
     object_property_add_alias(obj, "clk0-freq", OBJECT(&s->timer), "clk0-freq");
     object_property_add_alias(obj, "clk1-freq", OBJECT(&s->timer), "clk1-freq");
@@ -144,9 +138,10 @@ static void aw_f1c100s_realize(DeviceState *dev, Error **errp)
     int i = 0;
     AwF1C100SState *s = AW_F1C100S(dev);
 
-    printf("call %s()\n", __func__);
+    trace("call %s()\n", __func__);
+
     if (!qdev_realize(DEVICE(&s->cpu), NULL, errp)) {
-        printf("failed to realize CPU\n");
+        error("failed to realize CPU\n");
         return;
     }
 
@@ -205,14 +200,11 @@ static void aw_f1c100s_realize(DeviceState *dev, Error **errp)
     sysbus_realize(SYS_BUS_DEVICE(&s->spi[1]), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[1]), 0, s->memmap[AW_F1C100S_DEV_SPI1]);
 
-    SerialMM *smm = NULL;
     for (i = 0; i < 3; i++) {
-        smm = SERIAL_MM(qdev_new(TYPE_SERIAL_MM));
-        qdev_prop_set_chr(DEVICE(smm), "chardev", serial_hd(i));
-        qdev_prop_set_uint8(DEVICE(smm), "regshift", 2);
-        sysbus_realize_and_unref(SYS_BUS_DEVICE(smm), &error_fatal);
-        sysbus_mmio_map(SYS_BUS_DEVICE(smm), 0, s->memmap[AW_F1C100S_DEV_UART0 + i]);
-        sysbus_connect_irq(SYS_BUS_DEVICE(smm), 0, qdev_get_gpio_in(dev, IRQ_UART0 + i));
+        qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
+        sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->uart[i]), 0, s->memmap[AW_F1C100S_DEV_UART0 + i]);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->uart[i]), 0, qdev_get_gpio_in(dev, IRQ_UART0 + i));
     }
 
     sysbus_realize(SYS_BUS_DEVICE(&s->i2c[0]), &error_fatal);
@@ -236,7 +228,8 @@ static void aw_f1c100s_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
-    printf("call %s()\n", __func__);
+    trace("call %s()\n", __func__);
+
     dc->realize = aw_f1c100s_realize;
 }
 
@@ -250,7 +243,8 @@ static const TypeInfo aw_f1c100s_type_info = {
 
 static void aw_f1c100s_register_types(void)
 {
-    printf("call %s()\n", __func__);
+    trace("call %s()\n", __func__);
+
     type_register_static(&aw_f1c100s_type_info);
 }
 
@@ -258,17 +252,18 @@ type_init(aw_f1c100s_register_types)
 
 static void aw_f1c100s_board_init(MachineState *machine)
 {
+    char *filename = NULL;
     AwF1C100SState *f1c100s;
-    char *filename;
 
-    printf("call %s()\n", __func__);
+    trace("call %s()\n", __func__);
+
     if (strcmp(machine->cpu_type, ARM_CPU_TYPE_NAME("arm926")) != 0) {
-        printf("only arm926ejs supported\n");
+        fatal("only arm926ejs supported\n");
         exit(1);
     }
 
     if (machine->ram_size > 64 * MiB) {
-        printf("only 64MB supported\n");
+        fatal("only 64MB supported\n");
         exit(1);
     }
 
@@ -308,6 +303,8 @@ static void aw_f1c100s_board_init(MachineState *machine)
 
 static void aw_f1c100s_machine_init(MachineClass *mc)
 {
+    trace("call %s()\n", __func__);
+
     mc->desc = "Allwinner F1C100S (ARM926EJ-S)";
     mc->init = aw_f1c100s_board_init;
     mc->min_cpus = 1;
