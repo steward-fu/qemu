@@ -3,3 +3,6 @@ qemu/build/
 **.o
 **.pyc
 **.wraplock
+qemu/scripts/qapi/__pycache__
+qemu/scripts/tracetool/__pycache__
+qemu/tests/qemu-iotests/__pycache__
