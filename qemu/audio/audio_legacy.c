@@ -308,9 +308,9 @@ static void handle_pa(Audiodev *dev)
 static void handle_sdl(Audiodev *dev)
 {
     /* SDL is output only */
-    get_samples_to_usecs("QEMU_SDL_SAMPLES", &dev->u.sdl.out->buffer_length,
-        &dev->u.sdl.out->has_buffer_length,
-        qapi_AudiodevSdlPerDirectionOptions_base(dev->u.sdl.out));
+    get_samples_to_usecs("QEMU_SDL_SAMPLES", &dev->u.sdl2.out->buffer_length,
+        &dev->u.sdl2.out->has_buffer_length,
+        qapi_AudiodevSdlPerDirectionOptions_base(dev->u.sdl2.out));
 }
 #endif
 
@@ -403,7 +403,7 @@ static AudiodevListEntry *legacy_opt(const char *drvname)
 #endif
 
 #ifdef CONFIG_AUDIO_SDL
-    case AUDIODEV_DRIVER_SDL:
+    case AUDIODEV_DRIVER_SDL2:
         handle_sdl(e->dev);
         break;
 #endif

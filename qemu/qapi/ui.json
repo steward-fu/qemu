@@ -1327,7 +1327,20 @@
   'data'  : [ 'lctrl-lalt', 'lshift-lctrl-lalt', 'rctrl' ] }
 
 ##
-# @DisplaySDL:
+# @DisplaySDL1:
+#
+# SDL1 display options.
+#
+# @grab-mod:  Modifier keys that should be pressed together with the
+#             "G" key to release the mouse grab.
+#
+# Since: 7.1
+##
+{ 'struct'  : 'DisplaySDL1',
+  'data'    : { '*grab-mod'   : 'HotKeyMod' } }
+
+##
+# @DisplaySDL2:
 #
 # SDL2 display options.
 #
@@ -1336,7 +1349,7 @@
 #
 # Since: 7.1
 ##
-{ 'struct'  : 'DisplaySDL',
+{ 'struct'  : 'DisplaySDL2',
   'data'    : { '*grab-mod'   : 'HotKeyMod' } }
 
 ##
@@ -1353,7 +1366,8 @@
 #
 # @gtk: The GTK user interface.
 #
-# @sdl: The SDL user interface.
+# @sdl1: The SDL 1.x user interface.
+# @sdl2: The SDL 2.x user interface.
 #
 # @egl-headless: No user interface, offload GL operations to a local
 #                DRI device. Graphical display need to be paired with
@@ -1382,7 +1396,8 @@
     { 'name': 'default' },
     { 'name': 'none' },
     { 'name': 'gtk', 'if': 'CONFIG_GTK' },
-    { 'name': 'sdl', 'if': 'CONFIG_SDL' },
+    { 'name': 'sdl1', 'if': 'CONFIG_SDL1' },
+    { 'name': 'sdl2', 'if': 'CONFIG_SDL2' },
     { 'name': 'egl-headless',
               'if': { 'all': ['CONFIG_OPENGL', 'CONFIG_GBM'] } },
     { 'name': 'curses', 'if': 'CONFIG_CURSES' },
@@ -1419,7 +1434,8 @@
       'egl-headless': { 'type': 'DisplayEGLHeadless',
                         'if': { 'all': ['CONFIG_OPENGL', 'CONFIG_GBM'] } },
       'dbus': { 'type': 'DisplayDBus', 'if': 'CONFIG_DBUS_DISPLAY' },
-      'sdl': { 'type': 'DisplaySDL', 'if': 'CONFIG_SDL' }
+      'sdl1': { 'type': 'DisplaySDL1', 'if': 'CONFIG_SDL1' },
+      'sdl2': { 'type': 'DisplaySDL2', 'if': 'CONFIG_SDL2' }
   }
 }
 

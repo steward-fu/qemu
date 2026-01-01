@@ -825,7 +825,7 @@ static const DisplayGLCtxOps gl_ctx_ops = {
 
 static void sdl2_display_early_init(DisplayOptions *o)
 {
-    assert(o->type == DISPLAY_TYPE_SDL);
+    assert(o->type == DISPLAY_TYPE_SDL2);
     if (o->has_gl && o->gl) {
 #ifdef CONFIG_OPENGL
         display_opengl = 1;
@@ -841,7 +841,7 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
     SDL_Surface *icon = NULL;
     char *dir;
 
-    assert(o->type == DISPLAY_TYPE_SDL);
+    assert(o->type == DISPLAY_TYPE_SDL2);
 
     if (SDL_GetHintBoolean("QEMU_ENABLE_SDL_LOGGING", SDL_FALSE)) {
         SDL_LogSetAllPriority(SDL_LOG_PRIORITY_VERBOSE);
@@ -861,10 +861,10 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
 
     gui_fullscreen = o->has_full_screen && o->full_screen;
 
-    if (o->u.sdl.has_grab_mod) {
-        if (o->u.sdl.grab_mod == HOT_KEY_MOD_LSHIFT_LCTRL_LALT) {
+    if (o->u.sdl2.has_grab_mod) {
+        if (o->u.sdl2.grab_mod == HOT_KEY_MOD_LSHIFT_LCTRL_LALT) {
             alt_grab = true;
-        } else if (o->u.sdl.grab_mod == HOT_KEY_MOD_RCTRL) {
+        } else if (o->u.sdl2.grab_mod == HOT_KEY_MOD_RCTRL) {
             ctrl_grab = true;
         }
     }
@@ -946,7 +946,7 @@ static void sdl2_display_init(DisplayState *ds, DisplayOptions *o)
 }
 
 static QemuDisplay qemu_display_sdl2 = {
-    .type       = DISPLAY_TYPE_SDL,
+    .type       = DISPLAY_TYPE_SDL2,
     .early_init = sdl2_display_early_init,
     .init       = sdl2_display_init,
 };

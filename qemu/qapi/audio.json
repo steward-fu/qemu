@@ -416,7 +416,7 @@
             { 'name': 'jack', 'if': 'CONFIG_AUDIO_JACK' },
             { 'name': 'oss', 'if': 'CONFIG_AUDIO_OSS' },
             { 'name': 'pa', 'if': 'CONFIG_AUDIO_PA' },
-            { 'name': 'sdl', 'if': 'CONFIG_AUDIO_SDL' },
+            { 'name': 'sdl2', 'if': 'CONFIG_AUDIO_SDL' },
             { 'name': 'sndio', 'if': 'CONFIG_AUDIO_SNDIO' },
             { 'name': 'spice', 'if': 'CONFIG_SPICE' },
             'wav' ] }
@@ -456,7 +456,7 @@
                    'if': 'CONFIG_AUDIO_OSS' },
     'pa':        { 'type': 'AudiodevPaOptions',
                    'if': 'CONFIG_AUDIO_PA' },
-    'sdl':       { 'type': 'AudiodevSdlOptions',
+    'sdl2':       { 'type': 'AudiodevSdlOptions',
                    'if': 'CONFIG_AUDIO_SDL' },
     'sndio':     { 'type': 'AudiodevSndioOptions',
                    'if': 'CONFIG_AUDIO_SNDIO' },

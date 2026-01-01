@@ -2062,7 +2062,7 @@ void audio_create_pdos(Audiodev *dev)
         CASE(PA, pa, Pa);
 #endif
 #ifdef CONFIG_AUDIO_SDL
-        CASE(SDL, sdl, Sdl);
+        CASE(SDL2, sdl2, Sdl);
 #endif
 #ifdef CONFIG_AUDIO_SNDIO
         CASE(SNDIO, sndio, );

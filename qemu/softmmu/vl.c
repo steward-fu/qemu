@@ -1859,8 +1859,10 @@ static void qemu_apply_machine_options(QDict *qdict)
 static void qemu_create_early_backends(void)
 {
     MachineClass *machine_class = MACHINE_GET_CLASS(current_machine);
-#if defined(CONFIG_SDL)
-    const bool use_sdl = (dpy.type == DISPLAY_TYPE_SDL);
+#if defined(CONFIG_SDL1)
+    const bool use_sdl = (dpy.type == DISPLAY_TYPE_SDL1);
+#elif defined(CONFIG_SDL2)
+    const bool use_sdl = (dpy.type == DISPLAY_TYPE_SDL2);
 #else
     const bool use_sdl = false;
 #endif

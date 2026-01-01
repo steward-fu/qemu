@@ -111,18 +111,26 @@ if gtk.found()
   ui_modules += {'gtk' : gtk_ss}
 endif
 
-if sdl.found()
+if sdl1.found()
+  sdl1_ss = ss.source_set()
+  sdl1_ss.add(sdl1, sdl_image, files(
+    'sdl1.c',
+  ))
+  ui_modules += {'sdl1' : sdl1_ss}
+endif
+
+if sdl2.found()
   softmmu_ss.add(when: 'CONFIG_WIN32', if_true: files('win32-kbd-hook.c'))
 
-  sdl_ss = ss.source_set()
-  sdl_ss.add(sdl, sdl_image, pixman, glib, files(
+  sdl2_ss = ss.source_set()
+  sdl2_ss.add(sdl2, sdl_image, pixman, glib, files(
     'sdl2-2d.c',
     'sdl2-input.c',
     'sdl2.c',
   ))
-  sdl_ss.add(when: opengl, if_true: files('sdl2-gl.c'))
-  sdl_ss.add(when: x11, if_true: files('x_keymap.c'))
-  ui_modules += {'sdl' : sdl_ss}
+  sdl2_ss.add(when: opengl, if_true: files('sdl2-gl.c'))
+  sdl2_ss.add(when: x11, if_true: files('x_keymap.c'))
+  ui_modules += {'sdl2' : sdl2_ss}
 endif
 
 if spice.found()

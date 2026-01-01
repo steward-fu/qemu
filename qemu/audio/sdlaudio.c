@@ -341,7 +341,7 @@ static int sdl_init_out(HWVoiceOut *hw, struct audsettings *as,
     int err;
     AudioFormat effective_fmt;
     Audiodev *dev = drv_opaque;
-    AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.out;
+    AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl2.out;
     struct audsettings obt_as;
 
     req.freq = as->freq;
@@ -401,7 +401,7 @@ static int sdl_init_in(HWVoiceIn *hw, audsettings *as, void *drv_opaque)
     int err;
     AudioFormat effective_fmt;
     Audiodev *dev = drv_opaque;
-    AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl.in;
+    AudiodevSdlPerDirectionOptions *spdo = dev->u.sdl2.in;
     struct audsettings obt_as;
 
     req.freq = as->freq;

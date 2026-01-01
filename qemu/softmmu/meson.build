@@ -29,7 +29,7 @@ softmmu_ss.add(files(
   'runstate.c',
   'tpm-hmp-cmds.c',
   'vl.c',
-), sdl, libpmem, libdaxctl)
+), sdl2, libpmem, libdaxctl)
 
 if have_tpm
   softmmu_ss.add(files('tpm.c'))

@@ -2644,8 +2644,11 @@ bool qemu_display_find_default(DisplayOptions *opts)
 #if defined(CONFIG_GTK)
         DISPLAY_TYPE_GTK,
 #endif
-#if defined(CONFIG_SDL)
-        DISPLAY_TYPE_SDL,
+#if defined(CONFIG_SDL1)
+        DISPLAY_TYPE_SDL1,
+#endif
+#if defined(CONFIG_SDL2)
+        DISPLAY_TYPE_SDL2,
 #endif
 #if defined(CONFIG_COCOA)
         DISPLAY_TYPE_COCOA

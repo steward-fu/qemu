@@ -144,7 +144,8 @@ meson_options_help() {
   printf "%s\n" '  rbd             Ceph block device driver'
   printf "%s\n" '  rdma            Enable RDMA-based migration'
   printf "%s\n" '  replication     replication support'
-  printf "%s\n" '  sdl             SDL user interface'
+  printf "%s\n" '  sdl1            SDL v1.2 user interface'
+  printf "%s\n" '  sdl2            SDL v2.0 user interface'
   printf "%s\n" '  sdl-image       SDL Image support for icons'
   printf "%s\n" '  seccomp         seccomp support'
   printf "%s\n" '  selinux         SELinux support in qemu-nbd'
@@ -394,8 +395,10 @@ _meson_option_parse() {
     --disable-replication) printf "%s" -Dreplication=disabled ;;
     --enable-rng-none) printf "%s" -Drng_none=true ;;
     --disable-rng-none) printf "%s" -Drng_none=false ;;
-    --enable-sdl) printf "%s" -Dsdl=enabled ;;
-    --disable-sdl) printf "%s" -Dsdl=disabled ;;
+    --enable-sdl1) printf "%s" -Dsdl1=enabled ;;
+    --disable-sdl1) printf "%s" -Dsdl1=disabled ;;
+    --enable-sdl2) printf "%s" -Dsdl2=enabled ;;
+    --disable-sdl2) printf "%s" -Dsdl2=disabled ;;
     --enable-sdl-image) printf "%s" -Dsdl_image=enabled ;;
     --disable-sdl-image) printf "%s" -Dsdl_image=disabled ;;
     --enable-seccomp) printf "%s" -Dseccomp=enabled ;;

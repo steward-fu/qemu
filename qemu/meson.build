@@ -981,21 +981,33 @@ if not get_option('brlapi').auto() or have_system
   endif
 endif
 
-sdl = not_found
-if not get_option('sdl').auto() or have_system
-  sdl = dependency('sdl2', required: get_option('sdl'), kwargs: static_kwargs)
+sdl1 = not_found
+sdl_config = find_program('sdl-config', required: false)
+if sdl_config.found()
+  sdl_cflags = run_command(sdl_config, '--cflags', check: true).stdout().strip().split()
+  sdl_libs   = run_command(sdl_config, '--libs',   check: true).stdout().strip().split()
+
+  sdl1 = declare_dependency(
+    compile_args: sdl_cflags,
+    link_args: sdl_libs
+  )
+endif
+
+sdl2 = not_found
+if not get_option('sdl2').auto() or have_system
+  sdl2 = dependency('sdl2', required: get_option('sdl2'), kwargs: static_kwargs)
   sdl_image = not_found
 endif
-if sdl.found()
+if sdl2.found()
   # work around 2.0.8 bug
-  sdl = declare_dependency(compile_args: '-Wno-undef',
-                           dependencies: sdl)
+  sdl2 = declare_dependency(compile_args: '-Wno-undef',
+                           dependencies: sdl2)
   sdl_image = dependency('SDL2_image', required: get_option('sdl_image'),
                          method: 'pkg-config', kwargs: static_kwargs)
 else
   if get_option('sdl_image').enabled()
     error('sdl-image required, but SDL was @0@'.format(
-          get_option('sdl').disabled() ? 'disabled' : 'not found'))
+          get_option('sdl2').disabled() ? 'disabled' : 'not found'))
   endif
   sdl_image = not_found
 endif
@@ -1671,7 +1683,7 @@ if have_system
     'jack': jack.found(),
     'oss': oss.found(),
     'pa': pulse.found(),
-    'sdl': sdl.found(),
+    'sdl': sdl2.found(),
     'sndio': sndio.found(),
   }
   foreach k, v: audio_drivers_available
@@ -1879,7 +1891,8 @@ config_host_data.set('CONFIG_OPENGL', opengl.found())
 config_host_data.set('CONFIG_PROFILER', get_option('profiler'))
 config_host_data.set('CONFIG_RBD', rbd.found())
 config_host_data.set('CONFIG_RDMA', rdma.found())
-config_host_data.set('CONFIG_SDL', sdl.found())
+config_host_data.set('CONFIG_SDL1', sdl1.found())
+config_host_data.set('CONFIG_SDL2', sdl2.found())
 config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_SECCOMP', seccomp.found())
 if seccomp.found()
@@ -3527,7 +3540,7 @@ foreach target : target_dirs
       'sources': files('softmmu/main.c'),
       'dependencies': []
     }]
-    if targetos == 'windows' and (sdl.found() or gtk.found())
+    if targetos == 'windows' and (sdl2.found() or gtk.found())
       execs += [{
         'name': 'qemu-system-' + target_name + 'w',
         'win_subsystem': 'windows',
@@ -3952,7 +3965,8 @@ if targetos == 'darwin'
   summary_info += {'Cocoa support':           cocoa}
   summary_info += {'vmnet.framework support': vmnet}
 endif
-summary_info += {'SDL support':       sdl}
+summary_info += {'SDL v1.2 support':  sdl1}
+summary_info += {'SDL v2.0 support':  sdl2}
 summary_info += {'SDL image support': sdl_image}
 summary_info += {'GTK support':       gtk}
 summary_info += {'pixman':            pixman}
