@@ -72,36 +72,103 @@ static int nds_debug_level = FATAL_LEVEL;
 
 static struct sdl1_console *sdl1_console = NULL;
 
+extern int is_fast_done(void);
+extern int fast_flip(const void *p, int wait);
+
 static void sdl1_update(DisplayChangeListener *dcl, int x, int y, int w, int h)
 {
     struct sdl1_console *scon = container_of(dcl, struct sdl1_console, dcl);
 
     trace("call %s()\n", __func__);
-    SDL_BlitSurface(scon->guest_screen, NULL, scon->real_screen, NULL);
+
+    if (scon->dev_mode == 0) {
+        SDL_BlitSurface(scon->guest_screen, NULL, scon->real_screen, NULL);
+    }
     SDL_Flip(scon->real_screen);
+}
+
+static int sym_to_qcode(SDL_Event ev)
+{
+    switch (ev.key.keysym.sym) {
+    case SDLK_0:    return Q_KEY_CODE_0;
+    case SDLK_1:    return Q_KEY_CODE_1;
+    case SDLK_2:    return Q_KEY_CODE_2;
+    case SDLK_3:    return Q_KEY_CODE_3;
+    case SDLK_4:    return Q_KEY_CODE_4;
+    case SDLK_5:    return Q_KEY_CODE_5;
+    case SDLK_6:    return Q_KEY_CODE_6;
+    case SDLK_7:    return Q_KEY_CODE_7;
+    case SDLK_8:    return Q_KEY_CODE_8;
+    case SDLK_9:    return Q_KEY_CODE_9;
+    case SDLK_a:    return Q_KEY_CODE_A;
+    case SDLK_b:    return Q_KEY_CODE_B;
+    case SDLK_c:    return Q_KEY_CODE_C;
+    case SDLK_d:    return Q_KEY_CODE_D;
+    case SDLK_e:    return Q_KEY_CODE_E;
+    case SDLK_f:    return Q_KEY_CODE_F;
+    case SDLK_g:    return Q_KEY_CODE_G;
+    case SDLK_h:    return Q_KEY_CODE_H;
+    case SDLK_i:    return Q_KEY_CODE_I;
+    case SDLK_j:    return Q_KEY_CODE_J;
+    case SDLK_k:    return Q_KEY_CODE_K;
+    case SDLK_l:    return Q_KEY_CODE_L;
+    case SDLK_m:    return Q_KEY_CODE_M;
+    case SDLK_n:    return Q_KEY_CODE_N;
+    case SDLK_o:    return Q_KEY_CODE_O;
+    case SDLK_p:    return Q_KEY_CODE_P;
+    case SDLK_q:    return Q_KEY_CODE_Q;
+    case SDLK_r:    return Q_KEY_CODE_R;
+    case SDLK_s:    return Q_KEY_CODE_S;
+    case SDLK_t:    return Q_KEY_CODE_T;
+    case SDLK_u:    return Q_KEY_CODE_U;
+    case SDLK_v:    return Q_KEY_CODE_V;
+    case SDLK_w:    return Q_KEY_CODE_W;
+    case SDLK_x:    return Q_KEY_CODE_X;
+    case SDLK_y:    return Q_KEY_CODE_Y;
+    case SDLK_z:    return Q_KEY_CODE_Z;
+    default:        return Q_KEY_CODE_0;
+    }
+
+    return Q_KEY_CODE_0;
 }
 
 static void sdl1_refresh(DisplayChangeListener *dcl)
 {
-    uint8_t keycode = 0;
+    int qcode = 0;
     SDL_Event ev = { 0 };
+    struct sdl1_console *scon = container_of(dcl, struct sdl1_console, dcl);
+    QemuConsole *con = scon->dcl.con;
 
     trace("call %s()\n", __func__);
+
     while (SDL_PollEvent(&ev)) {
         switch (ev.type) {
-        case SDL_KEYDOWN:
-            //kbd_put_keysym(ev.key.keysym.sym);
-            //keycode = keysym2scancode(kbd_layout, ev.key.keysym.sym & 0xffff, ev->type == SDL_KEYDOWN);
-            //qemu_input_event_send_key_number(dcl->con, keycode, ev->type == SDL_KEYDOWN);
-            break;
         case SDL_KEYUP:
-            //qemu_input_event_send_key_number(dcl->con, keycode, ev->type == SDL_KEYDOWN);
+        case SDL_KEYDOWN:
+            qcode = sym_to_qcode(ev);
+            qkbd_state_key_event(scon->kbd, qcode, ev.type == SDL_KEYDOWN);
             break;
         case SDL_QUIT:
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
             break;
         }
     }
+
+    if (!qemu_console_is_graphic(con)) {
+        bool ctrl = qkbd_state_modifier_get(scon->kbd, QKBD_MOD_CTRL);
+        if (ev.type == SDL_KEYDOWN) {
+            switch (qcode) {
+            case Q_KEY_CODE_RET:
+                kbd_put_keysym_console(con, '\n');
+                break;
+            default:
+                kbd_put_qcode_console(con, qcode, ctrl);
+                break;
+            }
+        }
+    }
+
+    graphic_hw_update(dcl->con);
 }
 
 static void sdl1_window_resize(struct sdl1_console *scon)
@@ -110,7 +177,7 @@ static void sdl1_window_resize(struct sdl1_console *scon)
     int h = surface_height(scon->surface);
 
     trace("call %s(w=%d, h=%d)\n", __func__, w, h);
-    scon->real_screen = SDL_SetVideoMode(640, 480, 16, SDL_HWSURFACE);
+    scon->real_screen = SDL_SetVideoMode(w, h, 16, SDL_HWSURFACE);
 }
 
 static void sdl1_window_create(struct sdl1_console *scon)
@@ -119,7 +186,7 @@ static void sdl1_window_create(struct sdl1_console *scon)
     int h = surface_height(scon->surface);
 
     trace("call %s(w=%d, h=%d)\n", __func__, w, h);
-    scon->real_screen = SDL_SetVideoMode(640, 480, 16, SDL_HWSURFACE);
+    scon->real_screen = SDL_SetVideoMode(w, h, 16, SDL_HWSURFACE);
 }
 
 static void sdl1_switch(DisplayChangeListener *dcl, DisplaySurface *new_surface)
@@ -161,11 +228,14 @@ static void sdl1_switch(DisplayChangeListener *dcl, DisplaySurface *new_surface)
         pf.bmask,
         pf.amask
     );
-}
 
-static void sdl1_grab_start(struct sdl1_console *scon)
-{
-    trace("call %s()\n", __func__);
+    if (scon->dev_mode) {
+        SDL_FillRect(
+            scon->real_screen,
+            &scon->real_screen->clip_rect,
+            SDL_MapRGB(scon->real_screen->format, 0, 0, 0)
+        );
+    }
 }
 
 static void sdl1_cleanup(void)
@@ -183,11 +253,6 @@ static bool sdl1_check_format(DisplayChangeListener *dcl, pixman_format_code_t f
     trace("call %s()\n", __func__);
 
     return format == PIXMAN_r5g6b5;
-}
-
-static void sdl1_mouse_mode_change(Notifier *notify, void *data)
-{
-    trace("call %s()\n", __func__);
 }
 
 static void sdl1_mouse_warp(DisplayChangeListener *dcl, int x, int y, int on)
@@ -212,6 +277,8 @@ static const DisplayChangeListenerOps dcl_ops = {
 
 static void sdl1_display_init(DisplayState *ds, DisplayOptions *o)
 {
+    const char *env = getenv("QEMU_DEV_MODE");
+
     trace("call %s()\n", __func__);
 
     if (SDL_Init(SDL_INIT_VIDEO)) {
@@ -224,6 +291,12 @@ static void sdl1_display_init(DisplayState *ds, DisplayOptions *o)
     sdl1_console->opts = o;
     sdl1_console->dcl.con = con;
     sdl1_console->dcl.ops = &dcl_ops;
+    sdl1_console->kbd = qkbd_state_init(con);
+
+    if (env && !strcmp(env, "1")) {
+        trace("dev mode\n");
+        sdl1_console->dev_mode = 1;
+    }
     register_displaychangelistener(&sdl1_console->dcl);
 
     atexit(sdl1_cleanup);

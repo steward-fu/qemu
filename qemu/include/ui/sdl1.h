@@ -17,6 +17,9 @@ struct sdl1_console {
     DisplayChangeListener dcl;
     SDL_Surface *real_screen;
     SDL_Surface *guest_screen;
+    QKbdState *kbd;
+
+    int dev_mode;
 };
 
-#endif /* SDL1_H */
+#endif
