@@ -994,7 +994,7 @@ if get_option('sdl1').enabled()
 
   sdl1 = declare_dependency(
     compile_args: sdl1_cflags,
-    link_args: sdl1_libs
+    link_args: ('-lSDL -lSDL_gfx -lSDL_ttf').split()
   )
 
 #  sdl1_image = dependency('SDL_image', required: get_option('sdl1_image'),

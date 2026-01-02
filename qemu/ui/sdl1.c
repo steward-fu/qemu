@@ -33,8 +33,18 @@
 #include "ui/win32-kbd-hook.h"
 #include "qemu/log.h"
 
-#include <SDL/SDL.h>
-#include <SDL/SDL_syswm.h>
+#define DEV_MODE_W          640
+#define DEV_MODE_H          480
+#define TINY200_FILE        "/opt/qemu/dev-mode/tiny200.png"
+#define LED_RED_FILE        "/opt/qemu/dev-mode/led_red.png"
+#define LED_BLUE_FILE       "/opt/qemu/dev-mode/led_blue.png"
+#define LED_GREEN_FILE      "/opt/qemu/dev-mode/led_green.png"
+#define LED_ORANGE_FILE     "/opt/qemu/dev-mode/led_orange.png"
+#define LED_WHITE_FILE      "/opt/qemu/dev-mode/led_white.png"
+#define BTN_PRESS_FILE      "/opt/qemu/dev-mode/btn_press.png"
+#define BTN_RELEASE_FILE    "/opt/qemu/dev-mode/btn_release.png"
+#define FONT_FILE           "/opt/qemu/dev-mode/font.ttf"
+#define FONT_SIZE           24
 
 #define TRACE_LEVEL 3
 #define DEBUG_LEVEL 2
@@ -71,9 +81,6 @@ static int nds_debug_level = FATAL_LEVEL;
 } while(0);
 
 static struct sdl1_console *sdl1_console = NULL;
-
-extern int is_fast_done(void);
-extern int fast_flip(const void *p, int wait);
 
 static void sdl1_update(DisplayChangeListener *dcl, int x, int y, int w, int h)
 {
@@ -132,14 +139,87 @@ static int sym_to_qcode(SDL_Event ev)
     return Q_KEY_CODE_0;
 }
 
+static int draw_string(struct sdl1_console *scon, int x, int y, const char *text)
+{
+    SDL_Rect rt = { 0 };
+    SDL_Color col = { 0, 0, 255 };
+
+    rt.x = x;
+    rt.y = y;
+    SDL_Surface *msg = TTF_RenderUTF8_Solid(scon->font, text, col);
+    SDL_BlitSurface(msg, NULL, scon->real_screen, &rt);
+    SDL_FreeSurface(msg);
+
+    return 0;
+}
+
+static int draw_dev_item(struct sdl1_console *scon)
+{
+    int i = 0;
+    SDL_Rect srt = { 0 };
+    SDL_Rect drt = { 0 };
+
+    SDL_FillRect(
+        scon->real_screen,
+        &scon->real_screen->clip_rect,
+        SDL_MapRGB(scon->real_screen->format, 0xff, 0xff, 0xff)
+    );
+
+    for (i = 0; i < 3; i++) {
+        drt.x = (i * 100);
+        drt.y = 45;
+        SDL_BlitSurface(scon->led_status[i] ? scon->led_red : scon->led_white, NULL, scon->real_screen, &drt);
+
+        drt.x = 325 + (i * 100);
+        drt.y = 65;
+        SDL_BlitSurface(scon->btn_status[i] ? scon->btn_press : scon->btn_release, NULL, scon->real_screen, &drt);
+    }
+
+    SDL_Surface *t = SDL_ConvertSurface(scon->tiny200, scon->real_screen->format, 0);
+
+    srt.x = 0;
+    srt.y = 0;
+    srt.w = t->w;
+    srt.h = t->h;
+    drt.w = t->w >> 2;
+    drt.h = t->h >> 2;
+    drt.x = (DEV_MODE_W - drt.w) >> 1;
+    drt.y = 250;
+    SDL_SoftStretch(t, &srt, scon->real_screen, &drt);
+    SDL_FreeSurface(t);
+
+    draw_string(scon, 40, 170, "PE0");
+    draw_string(scon, 140, 170, "PE1");
+    draw_string(scon, 240, 170, "PE2");
+    draw_string(scon, 353, 170, "PE3");
+    draw_string(scon, 453, 170, "PE4");
+    draw_string(scon, 553, 170, "PE5");
+
+    int w = 0;
+    int h = 0;
+    const char *model = "Allwinner F1C100S";
+    TTF_SizeUTF8(scon->font, model, &w, &h);
+    draw_string(scon, (DEV_MODE_W - w) >> 1, 395, model);
+
+    return 0;
+}
+
 static void sdl1_refresh(DisplayChangeListener *dcl)
 {
+    int x = 0;
+    int y = 0;
+    int r = 35;
     int qcode = 0;
+    int pressed = 0;
     SDL_Event ev = { 0 };
     struct sdl1_console *scon = container_of(dcl, struct sdl1_console, dcl);
     QemuConsole *con = scon->dcl.con;
 
     trace("call %s()\n", __func__);
+
+    if (scon->dev_mode) {
+        draw_dev_item(scon);
+    }
 
     while (SDL_PollEvent(&ev)) {
         switch (ev.type) {
@@ -147,6 +227,27 @@ static void sdl1_refresh(DisplayChangeListener *dcl)
         case SDL_KEYDOWN:
             qcode = sym_to_qcode(ev);
             qkbd_state_key_event(scon->kbd, qcode, ev.type == SDL_KEYDOWN);
+            break;
+        case SDL_MOUSEMOTION:
+            SDL_GetMouseState(&x, &y);
+            trace("%d, %d\n", x, y);
+            break;
+        case SDL_MOUSEBUTTONUP:
+        case SDL_MOUSEBUTTONDOWN:
+            pressed = (ev.type == SDL_MOUSEBUTTONDOWN) ? 1 : 0;
+            SDL_GetMouseState(&x, &y);
+            if (((x >= 355) && (x <= (355 + r))) && (y >= 95) && (y <= 95 + r)) {
+                scon->btn_status[0] = pressed;
+                trace("BTN 1 (X=%d, Y=%d, PRESS=%d)\n", x, y, pressed);
+            }
+            else if (((x >= 455) && (x <= (455 + r))) && (y >= 95) && (y <= 95 + r)) {
+                scon->btn_status[1] = pressed;
+                trace("BTN 2 (X=%d, Y=%d, PRESS=%d)\n", x, y, pressed);
+            }
+            else if (((x >= 555) && (x <= (555 + r))) && (y >= 95) && (y <= 95 + r)) {
+                scon->btn_status[2] = pressed;
+                trace("BTN 3 (X=%d, Y=%d, PRESS=%d)\n", x, y, pressed);
+            }
             break;
         case SDL_QUIT:
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
@@ -177,16 +278,56 @@ static void sdl1_window_resize(struct sdl1_console *scon)
     int h = surface_height(scon->surface);
 
     trace("call %s(w=%d, h=%d)\n", __func__, w, h);
+
+    if (scon->dev_mode) {
+        w = DEV_MODE_W;
+        h = DEV_MODE_H;
+    }
     scon->real_screen = SDL_SetVideoMode(w, h, 16, SDL_HWSURFACE);
 }
 
 static void sdl1_window_create(struct sdl1_console *scon)
 {
+    char *dir = NULL;
+    SDL_Surface *icon = NULL;
     int w = surface_width(scon->surface);
     int h = surface_height(scon->surface);
 
     trace("call %s(w=%d, h=%d)\n", __func__, w, h);
+
+    if (scon->dev_mode) {
+        w = DEV_MODE_W;
+        h = DEV_MODE_H;
+
+        scon->tiny200 = IMG_Load(TINY200_FILE);
+        scon->led_red = IMG_Load(LED_RED_FILE);
+        scon->led_blue = IMG_Load(LED_BLUE_FILE);
+        scon->led_green = IMG_Load(LED_GREEN_FILE);
+        scon->led_orange = IMG_Load(LED_ORANGE_FILE);
+        scon->led_white = IMG_Load(LED_WHITE_FILE);
+        scon->btn_press = IMG_Load(BTN_PRESS_FILE);
+        scon->btn_release = IMG_Load(BTN_RELEASE_FILE);
+    }
     scon->real_screen = SDL_SetVideoMode(w, h, 16, SDL_HWSURFACE);
+
+    if (scon->dev_mode) {
+        SDL_WM_SetCaption("QEMU Development Mode", "qemu");
+    }
+    else {
+        SDL_WM_SetCaption("QEMU", "qemu");
+    }
+
+    dir = get_relocated_path(CONFIG_QEMU_ICONDIR "/hicolor/128x128/apps/qemu.png");
+    icon = IMG_Load(dir);
+    g_free(dir);
+
+    if (icon) {
+        SDL_WM_SetIcon(icon, NULL);
+    }
+
+    TTF_Init();
+    scon->font = TTF_OpenFont(FONT_FILE, FONT_SIZE);
+    //TTF_SetFontStyle(scon->font, TTF_STYLE_BOLD);
 }
 
 static void sdl1_switch(DisplayChangeListener *dcl, DisplaySurface *new_surface)
@@ -233,18 +374,48 @@ static void sdl1_switch(DisplayChangeListener *dcl, DisplaySurface *new_surface)
         SDL_FillRect(
             scon->real_screen,
             &scon->real_screen->clip_rect,
-            SDL_MapRGB(scon->real_screen->format, 0, 0, 0)
+            SDL_MapRGB(scon->real_screen->format, 0xff, 0xff, 0xff)
         );
     }
 }
 
 static void sdl1_cleanup(void)
 {
+    struct sdl1_console *scon = sdl1_console;
+
     trace("call %s()\n", __func__);
 
-    if (sdl1_console->guest_screen != NULL) {
-        SDL_FreeSurface(sdl1_console->guest_screen);
+    if (scon->guest_screen) {
+        SDL_FreeSurface(scon->guest_screen);
     }
+    if (scon->tiny200) {
+        SDL_FreeSurface(scon->tiny200);
+    }
+    if (scon->led_red) {
+        SDL_FreeSurface(scon->led_red);
+    }
+    if (scon->led_blue) {
+        SDL_FreeSurface(scon->led_blue);
+    }
+    if (scon->led_green) {
+        SDL_FreeSurface(scon->led_green);
+    }
+    if (scon->led_orange) {
+        SDL_FreeSurface(scon->led_orange);
+    }
+    if (scon->led_white) {
+        SDL_FreeSurface(scon->led_white);
+    }
+    if (scon->btn_press) {
+        SDL_FreeSurface(scon->btn_press);
+    }
+    if (scon->btn_release) {
+        SDL_FreeSurface(scon->btn_release);
+    }
+    if (scon->font) {
+        TTF_CloseFont(scon->font);
+    }
+    TTF_Quit();
     SDL_QuitSubSystem(SDL_INIT_VIDEO);
 }
 
