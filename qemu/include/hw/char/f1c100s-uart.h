@@ -12,15 +12,15 @@
  * for more details.
  */
 
-#ifndef HW_CHAR_ALLWINNER_UART_H
-#define HW_CHAR_ALLWINNER_UART_H
+#ifndef __CHAR_F1C100S_UART_H__
+#define __CHAR_F1C100S_UART_H__
 
 #include "hw/sysbus.h"
 #include "chardev/char-fe.h"
 #include "qom/object.h"
 #include "qemu/fifo8.h"
 
-#define TYPE_AW_UART "allwinner-uart"
+#define TYPE_AW_UART "f1c100s-uart"
 OBJECT_DECLARE_SIMPLE_TYPE(AwUartState, AW_UART)
 
 #define AW_UART_FIFO_SIZE 64

@@ -3,19 +3,17 @@
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License
- or
+ * Free Software Foundation; either version 2 of the License or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful
- but WITHOUT
+ * This program is distributed in the hope that it will be useful but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License
  * for more details.
  */
 
 #include "qemu/osdep.h"
-#include "hw/char/allwinner-uart.h"
+#include "hw/char/f1c100s-uart.h"
 #include "hw/irq.h"
 #include "hw/qdev-properties.h"
 #include "hw/qdev-properties-system.h"
@@ -416,31 +414,6 @@ static Property aw_uart_properties[] = {
     DEFINE_PROP_END_OF_LIST()
 };
 
-static const VMStateDescription vmstate_aw_uart = {
-    .name = TYPE_AW_UART,
-    .version_id = 1,
-    .minimum_version_id = 1,
-    .fields = (const VMStateField[]) {
-        VMSTATE_UINT8(ier, AwUartState),
-        VMSTATE_UINT8(iir, AwUartState),
-        VMSTATE_UINT8(lcr, AwUartState),
-        VMSTATE_UINT8(mcr, AwUartState),
-        VMSTATE_UINT8(lsr, AwUartState),
-        VMSTATE_UINT8(msr, AwUartState),
-        VMSTATE_UINT8(scr, AwUartState),
-        VMSTATE_UINT8(dll, AwUartState),
-        VMSTATE_UINT8(dlh, AwUartState),
-        VMSTATE_UINT8(fcr, AwUartState),
-        VMSTATE_UINT32(halt, AwUartState),
-        VMSTATE_FIFO8(rx_fifo, AwUartState),
-        VMSTATE_FIFO8(tx_fifo, AwUartState),
-        VMSTATE_UINT8(rx_fifo_trigger, AwUartState),
-        VMSTATE_BOOL(fifo_enabled, AwUartState),
-        VMSTATE_BOOL(thr_ipending, AwUartState),
-        VMSTATE_END_OF_LIST()
-    }
-};
-
 static void aw_uart_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
@@ -450,7 +423,6 @@ static void aw_uart_class_init(ObjectClass *oc, void *data)
     dc->reset = aw_uart_reset;
     dc->realize = aw_uart_realize;
     dc->unrealize = aw_uart_unrealize;
-    dc->vmsd = &vmstate_aw_uart;
     device_class_set_props(dc, aw_uart_properties);
 }
 

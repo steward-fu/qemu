@@ -21,7 +21,7 @@
 #include "qemu/log.h"
 #include "qemu/aw_log.h"
 #include "qemu/module.h"
-#include "hw/misc/allwinner-f1c100s-ccu.h"
+#include "hw/misc/f1c100s-ccu.h"
 
 enum {
     REG_PLL_CPU_CTL     = 0x00,
