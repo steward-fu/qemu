@@ -1,1 +1,0 @@
-/home/steward/Downloads/qemu/Makefile

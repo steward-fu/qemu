@@ -578,3 +578,6 @@ config ARMSSE
     select UNIMP
     select SSE_COUNTER
     select SSE_TIMER
+
+config F1C100S
+    bool
