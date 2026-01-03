@@ -27,6 +27,7 @@
 #include "hw/misc/f1c100s-ccu.h"
 #include "hw/misc/allwinner-sid.h"
 #include "hw/intc/f1c100s.h"
+#include "hw/gpio/f1c100s.h"
 #include "hw/timer/allwinner-a10-pit.h"
 #include "hw/ssi/allwinner-sun6i-spi.h"
 #include "hw/ssi/ssi.h"
@@ -38,7 +39,11 @@
 #include "qemu/units.h"
 #include "qemu/aw_log.h"
 #include "hw/firmware/smbios.h"
+#include "sysemu/runstate.h"
 
+struct aw_shm_t aw_shm = { 0 };
+
+int aw_dev_mode = 0;
 int aw_debug_level = FATAL_LEVEL;
 struct arm_boot_info f1c100s_binfo = { 0 };
 
@@ -48,6 +53,7 @@ const hwaddr allwinner_f1c100s_memmap[] = {
     [AW_F1C100S_DEV_SPI1]       = 0x01C06000,
     [AW_F1C100S_DEV_CCU]        = 0x01C20000,
     [AW_F1C100S_DEV_INTC]       = 0x01C20400,
+    [AW_F1C100S_DEV_GPIO]       = 0x01C20800,
     [AW_F1C100S_DEV_TIMER]      = 0x01C20C00,
     [AW_F1C100S_DEV_SID]        = 0x01C23800,
     [AW_F1C100S_DEV_MMC0]       = 0x01C0F000,
@@ -108,7 +114,7 @@ enum {
 
 static void aw_f1c100s_init(Object *obj)
 {
-    AwF1C100SState *s = AW_F1C100S(obj);
+    AwF1c100sState *s = AW_F1C100S(obj);
 
     trace("call %s()\n", __func__);
 
@@ -118,6 +124,7 @@ static void aw_f1c100s_init(Object *obj)
     object_initialize_child(obj, "spi[1]", &s->spi[1], TYPE_AW_SUN6I_SPI);
     object_initialize_child(obj, "ccu", &s->ccu, TYPE_AW_F1C100S_CCU);
     object_initialize_child(obj, "intc", &s->intc, TYPE_AW_F1C100S_INTC);
+    object_initialize_child(obj, "gpio", &s->gpio, TYPE_AW_F1C100S_GPIO);
     object_initialize_child(obj, "timer", &s->timer, TYPE_AW_A10_PIT);
     object_initialize_child(obj, "sid", &s->sid, TYPE_AW_SID);
     object_initialize_child(obj, "mmc[0]", &s->mmc[0], TYPE_AW_SDHOST_SUN5I);
@@ -133,10 +140,15 @@ static void aw_f1c100s_init(Object *obj)
     object_property_add_alias(obj, "clk1-freq", OBJECT(&s->timer), "clk1-freq");
 }
 
+static void aw_shutdown_cb(Notifier *n, void *opaque)
+{
+    trace("call %s()\n", __func__);
+}
+
 static void aw_f1c100s_realize(DeviceState *dev, Error **errp)
 {
     int i = 0;
-    AwF1C100SState *s = AW_F1C100S(dev);
+    AwF1c100sState *s = AW_F1C100S(dev);
 
     trace("call %s()\n", __func__);
 
@@ -152,6 +164,9 @@ static void aw_f1c100s_realize(DeviceState *dev, Error **errp)
 
     sysbus_realize(SYS_BUS_DEVICE(&s->ccu), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, s->memmap[AW_F1C100S_DEV_CCU]);
+
+    sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, s->memmap[AW_F1C100S_DEV_GPIO]);
 
     sysbus_realize(SYS_BUS_DEVICE(&s->intc), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->intc), 0, s->memmap[AW_F1C100S_DEV_INTC]);
@@ -219,8 +234,17 @@ static void aw_f1c100s_realize(DeviceState *dev, Error **errp)
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->i2c[2]), 0, s->memmap[AW_F1C100S_DEV_TWI2]);
     sysbus_connect_irq(SYS_BUS_DEVICE(&s->i2c[2]), 0, qdev_get_gpio_in(dev, IRQ_TWI2));
 
+    s->shutdown_notifier.notify = aw_shutdown_cb;
+    qemu_register_shutdown_notifier(&s->shutdown_notifier);
+
     for (i = 0; i < ARRAY_SIZE(unimplemented); i++) {
         create_unimplemented_device(unimplemented[i].device_name, unimplemented[i].base, unimplemented[i].size);
+    }
+
+    const char *env = getenv("QEMU_DEV_MODE");
+    if (env && !strcmp(env, "1")) {
+        trace("dev mode\n");
+        aw_dev_mode = 1;
     }
 }
 
@@ -236,7 +260,7 @@ static void aw_f1c100s_class_init(ObjectClass *oc, void *data)
 static const TypeInfo aw_f1c100s_type_info = {
     .name = TYPE_AW_F1C100S,
     .parent = TYPE_DEVICE,
-    .instance_size = sizeof(AwF1C100SState),
+    .instance_size = sizeof(AwF1c100sState),
     .instance_init = aw_f1c100s_init,
     .class_init = aw_f1c100s_class_init,
 };
@@ -253,7 +277,7 @@ type_init(aw_f1c100s_register_types)
 static void aw_f1c100s_board_init(MachineState *machine)
 {
     char *filename = NULL;
-    AwF1C100SState *f1c100s;
+    AwF1c100sState *f1c100s;
 
     trace("call %s()\n", __func__);
 
@@ -311,8 +335,7 @@ static void aw_f1c100s_machine_init(MachineClass *mc)
     mc->max_cpus = 1;
     mc->default_cpus = 1;
     mc->default_cpu_type = ARM_CPU_TYPE_NAME("arm926");
-    /* bug: because qemu can't emulate DRAM test, uboot spl report 64 MiB */
-    mc->default_ram_size = 64 * MiB;
+    mc->default_ram_size = 32 * MiB;
     mc->default_ram_id = "aw_f1c100s.ram";
 };
 

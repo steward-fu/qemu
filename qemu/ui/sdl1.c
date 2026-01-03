@@ -32,6 +32,7 @@
 #include "sysemu/sysemu.h"
 #include "ui/win32-kbd-hook.h"
 #include "qemu/log.h"
+#include "qemu/aw_log.h"
 
 #define DEV_MODE_W          640
 #define DEV_MODE_H          480
@@ -50,35 +51,6 @@
 #define DEBUG_LEVEL 2
 #define ERROR_LEVEL 1
 #define FATAL_LEVEL 0
-
-static int nds_debug_level = FATAL_LEVEL;
-
-#define trace(...) do {                         \
-    if (nds_debug_level >= TRACE_LEVEL) {       \
-        printf("[TRACE] ");                     \
-        printf(__VA_ARGS__);                    \
-    }                                           \
-} while(0);
-
-#define debug(...) do {                         \
-    if (nds_debug_level >= DEBUG_LEVEL) {       \
-        printf("[DEBUG] ");                     \
-        printf(__VA_ARGS__);                    \
-    }                                           \
-} while(0);
-
-#define error(...) do {                         \
-    if (nds_debug_level >= ERROR_LEVEL) {       \
-        printf("[ERROR] ");                     \
-        printf(__VA_ARGS__);                    \
-    }                                           \
-} while(0);
-
-#define fatal(...) do {                         \
-    printf("[FATAL] ");                         \
-    printf(__VA_ARGS__);                        \
-    exit(-1);                                   \
-} while(0);
 
 static struct sdl1_console *sdl1_console = NULL;
 
@@ -168,11 +140,21 @@ static int draw_dev_item(struct sdl1_console *scon)
     for (i = 0; i < 3; i++) {
         drt.x = (i * 100);
         drt.y = 45;
-        SDL_BlitSurface(scon->led_status[i] ? scon->led_red : scon->led_white, NULL, scon->real_screen, &drt);
+        SDL_BlitSurface(
+            (aw_shm.pe & (1 << i)) ? scon->led_red : scon->led_white,
+            NULL,
+            scon->real_screen,
+            &drt
+        );
 
         drt.x = 325 + (i * 100);
         drt.y = 65;
-        SDL_BlitSurface(scon->btn_status[i] ? scon->btn_press : scon->btn_release, NULL, scon->real_screen, &drt);
+        SDL_BlitSurface(
+            (aw_shm.pe & (1 << (3 + i))) ? scon->btn_press : scon->btn_release,
+            NULL,
+            scon->real_screen,
+            &drt
+        );
     }
 
     SDL_Surface *t = SDL_ConvertSurface(scon->tiny200, scon->real_screen->format, 0);
@@ -237,19 +219,21 @@ static void sdl1_refresh(DisplayChangeListener *dcl)
             pressed = (ev.type == SDL_MOUSEBUTTONDOWN) ? 1 : 0;
             SDL_GetMouseState(&x, &y);
             if (((x >= 355) && (x <= (355 + r))) && (y >= 95) && (y <= 95 + r)) {
-                scon->btn_status[0] = pressed;
+                aw_shm.pe &= ~(1 << 3);
                 trace("BTN 1 (X=%d, Y=%d, PRESS=%d)\n", x, y, pressed);
             }
             else if (((x >= 455) && (x <= (455 + r))) && (y >= 95) && (y <= 95 + r)) {
-                scon->btn_status[1] = pressed;
+                aw_shm.pe &= ~(1 << 4);
                 trace("BTN 2 (X=%d, Y=%d, PRESS=%d)\n", x, y, pressed);
             }
             else if (((x >= 555) && (x <= (555 + r))) && (y >= 95) && (y <= 95 + r)) {
-                scon->btn_status[2] = pressed;
+                aw_shm.pe &= ~(1 << 5);
                 trace("BTN 3 (X=%d, Y=%d, PRESS=%d)\n", x, y, pressed);
             }
             break;
         case SDL_QUIT:
+            trace("shutdown from SDL\n");
+            qemu_system_shutdown_request(SHUTDOWN_CAUSE_GUEST_SHUTDOWN);
             qemu_system_shutdown_request(SHUTDOWN_CAUSE_HOST_UI);
             break;
         }
@@ -327,7 +311,6 @@ static void sdl1_window_create(struct sdl1_console *scon)
 
     TTF_Init();
     scon->font = TTF_OpenFont(FONT_FILE, FONT_SIZE);
-    //TTF_SetFontStyle(scon->font, TTF_STYLE_BOLD);
 }
 
 static void sdl1_switch(DisplayChangeListener *dcl, DisplaySurface *new_surface)

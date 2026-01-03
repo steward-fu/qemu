@@ -15,6 +15,8 @@
 #ifndef QEMU_AW_LOG_H
 #define QEMU_AW_LOG_H
 
+#include "hw/gpio/f1c100s.h"
+
 #define TRACE_LEVEL 3
 #define DEBUG_LEVEL 2
 #define ERROR_LEVEL 1
@@ -48,5 +50,11 @@ extern int aw_debug_level;
     printf(__VA_ARGS__);                        \
     exit(-1);                                   \
 } while(0);
+
+struct aw_shm_t {
+    struct f1c100s_gpio_t pe;
+};
+
+extern struct aw_shm_t aw_shm;
 
 #endif

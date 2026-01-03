@@ -22,8 +22,6 @@ struct sdl1_console {
     QKbdState *kbd;
 
     int dev_mode;
-    int led_status[3];
-    int btn_status[3];
 
     SDL_Surface *tiny200;
     SDL_Surface *led_red;

@@ -16,6 +16,7 @@
 #define __ARM_F1C100S_H__
 
 #include "hw/intc/f1c100s.h"
+#include "hw/gpio/f1c100s.h"
 #include "hw/misc/f1c100s-ccu.h"
 #include "hw/misc/allwinner-sid.h"
 #include "hw/sd/allwinner-sdhost.h"
@@ -33,6 +34,7 @@ enum {
     AW_F1C100S_DEV_SPI1,
     AW_F1C100S_DEV_CCU,
     AW_F1C100S_DEV_INTC,
+    AW_F1C100S_DEV_GPIO,
     AW_F1C100S_DEV_TIMER,
     AW_F1C100S_DEV_UART0,
     AW_F1C100S_DEV_UART1,
@@ -49,15 +51,17 @@ enum {
 };
 
 #define TYPE_AW_F1C100S "f1c100s"
-OBJECT_DECLARE_SIMPLE_TYPE(AwF1C100SState, AW_F1C100S)
+OBJECT_DECLARE_SIMPLE_TYPE(AwF1c100sState, AW_F1C100S)
 
-struct AwF1C100SState {
+struct AwF1c100sState {
     DeviceState parent_obj;
+    Notifier shutdown_notifier;
     const hwaddr *memmap;
 
     ARMCPU cpu;
     AwF1c100sClockCtlState ccu;
     AwF1c100sIntcState intc;
+    AwF1c100sGpioState gpio;
     AwA10PITState timer;
     AwSun6iSpiState spi[2];
     AWI2CState i2c[3];
