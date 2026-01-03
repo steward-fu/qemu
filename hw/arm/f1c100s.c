@@ -15,11 +15,13 @@
 #include "sysemu/sysemu.h"
 #include "sysemu/runstate.h"
 #include "target/arm/cpu.h"
+#include "hw/gpio/f1c100s.h"
 
 #define TYPE_AW_F1C100S "f1c100s"
 OBJECT_DECLARE_SIMPLE_TYPE(AwF1c100sState, AW_F1C100S)
 
 enum {
+    AW_F1C100S_DEV_GPIO,
     AW_F1C100S_DEV_BOOTROM
 };
 
@@ -28,24 +30,30 @@ struct AwF1c100sState {
     ARMCPU cpu;
     const hwaddr *memmap;
     MemoryRegion bootrom;
+
+    AwF1c100sGpioState gpio;
 };
 
 static const hwaddr f1c100s_memmap[] = {
+    [AW_F1C100S_DEV_GPIO]    = 0x01C20800,
     [AW_F1C100S_DEV_BOOTROM] = 0xFFFF0000
 };
 
 static struct arm_boot_info f1c100s_binfo = { 0 };
 
-static void aw_f1c100s_realize(DeviceState *dev, Error **errp)
+static void f1c100s_realize(DeviceState *dev, Error **errp)
 {
     AwF1c100sState *s = AW_F1C100S(dev);
 
     printf("call %s()\n", __func__);
 
     qdev_realize(DEVICE(&s->cpu), NULL, errp);
+
+    sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, s->memmap[AW_F1C100S_DEV_GPIO]);
 }
 
-static void aw_f1c100s_init(Object *obj)
+static void f1c100s_init(Object *obj)
 {
     AwF1c100sState *s = AW_F1C100S(obj);
 
@@ -53,33 +61,34 @@ static void aw_f1c100s_init(Object *obj)
 
     s->memmap = f1c100s_memmap;
     object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm926"));
+    object_initialize_child(obj, "gpio", &s->gpio, TYPE_AW_F1C100S_GPIO);
 }
 
-static void aw_f1c100s_class_init(ObjectClass *oc, void *data)
+static void f1c100s_class_init(ObjectClass *oc, void *data)
 {
     DeviceClass *dc = DEVICE_CLASS(oc);
 
     printf("call %s()\n", __func__);
-    dc->realize = aw_f1c100s_realize;
+    dc->realize = f1c100s_realize;
 }
 
-static const TypeInfo aw_f1c100s_type_info = {
+static const TypeInfo f1c100s_type_info = {
     .name = "f1c100s",
     .parent = TYPE_DEVICE,
     .instance_size = sizeof(AwF1c100sState),
-    .instance_init = aw_f1c100s_init,
-    .class_init = aw_f1c100s_class_init,
+    .instance_init = f1c100s_init,
+    .class_init = f1c100s_class_init,
 };
 
-static void aw_f1c100s_register_types(void)
+static void f1c100s_register_types(void)
 {
     printf("call %s()\n", __func__);
-    type_register_static(&aw_f1c100s_type_info);
+    type_register_static(&f1c100s_type_info);
 }
 
-type_init(aw_f1c100s_register_types)
+type_init(f1c100s_register_types)
 
-static void aw_f1c100s_board_init(MachineState *machine)
+static void f1c100s_board_init(MachineState *machine)
 {
     AwF1c100sState *f1c100s = NULL;
 
@@ -108,12 +117,12 @@ static void aw_f1c100s_board_init(MachineState *machine)
     arm_load_kernel(&f1c100s->cpu, machine, &f1c100s_binfo);
 };
 
-static void aw_f1c100s_machine_init(MachineClass *mc)
+static void f1c100s_machine_init(MachineClass *mc)
 {
     printf("call %s()\n", __func__);
 
     mc->desc = "Allwinner F1C100S (ARM926EJ-S)";
-    mc->init = aw_f1c100s_board_init;
+    mc->init = f1c100s_board_init;
     mc->min_cpus = 1;
     mc->max_cpus = 1;
     mc->default_cpus = 1;
@@ -122,4 +131,4 @@ static void aw_f1c100s_machine_init(MachineClass *mc)
     mc->default_ram_id = "aw_f1c100s.ram";
 };
 
-DEFINE_MACHINE("f1c100s", aw_f1c100s_machine_init)
+DEFINE_MACHINE("f1c100s", f1c100s_machine_init)
