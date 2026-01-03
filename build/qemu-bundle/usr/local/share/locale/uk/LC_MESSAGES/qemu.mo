@@ -1,0 +1,1 @@
+/home/steward/Downloads/qemu/build/po/uk/LC_MESSAGES/qemu.mo

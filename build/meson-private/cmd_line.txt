@@ -1,0 +1,8 @@
+[options]
+werror = true
+vfio_user_server = disabled
+prefix = /usr/local
+
+[properties]
+native_file = ['/home/steward/Downloads/qemu/build/config-meson.cross']
+

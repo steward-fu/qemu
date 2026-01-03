@@ -1,0 +1,2 @@
+/home/steward/Downloads/qemu/build/meson-private/cmake_gvnc-1.0/CMakeFiles/edit_cache.dir
+/home/steward/Downloads/qemu/build/meson-private/cmake_gvnc-1.0/CMakeFiles/rebuild_cache.dir
