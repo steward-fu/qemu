@@ -21,7 +21,9 @@
 OBJECT_DECLARE_SIMPLE_TYPE(AwF1c100sState, AW_F1C100S)
 
 enum {
+    AW_F1C100S_DEV_SRAM,
     AW_F1C100S_DEV_GPIO,
+    AW_F1C100S_DEV_SDRAM,
     AW_F1C100S_DEV_BOOTROM
 };
 
@@ -29,13 +31,16 @@ struct AwF1c100sState {
     DeviceState parent_obj;
     ARMCPU cpu;
     const hwaddr *memmap;
+    MemoryRegion sram;
     MemoryRegion bootrom;
 
     AwF1c100sGpioState gpio;
 };
 
 static const hwaddr f1c100s_memmap[] = {
+    [AW_F1C100S_DEV_SRAM]    = 0x00000000,
     [AW_F1C100S_DEV_GPIO]    = 0x01C20800,
+    [AW_F1C100S_DEV_SDRAM]   = 0x80000000,
     [AW_F1C100S_DEV_BOOTROM] = 0xFFFF0000
 };
 
@@ -48,6 +53,9 @@ static void f1c100s_realize(DeviceState *dev, Error **errp)
     printf("call %s()\n", __func__);
 
     qdev_realize(DEVICE(&s->cpu), NULL, errp);
+
+    memory_region_init_ram(&s->sram, OBJECT(dev), "sram", 40 * KiB, &error_abort);
+    memory_region_add_subregion(get_system_memory(), s->memmap[AW_F1C100S_DEV_SRAM], &s->sram);
 
     sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, s->memmap[AW_F1C100S_DEV_GPIO]);
@@ -99,6 +107,7 @@ static void f1c100s_board_init(MachineState *machine)
     object_unref(OBJECT(f1c100s));
 
     qdev_realize(DEVICE(f1c100s), NULL, &error_abort);
+    memory_region_add_subregion(get_system_memory(), f1c100s->memmap[AW_F1C100S_DEV_SDRAM], machine->ram);
     memory_region_init_rom(&f1c100s->bootrom, NULL, "aw_f1c100s.bootrom", 64 * KiB, &error_fatal);
     memory_region_add_subregion(get_system_memory(), f1c100s->memmap[AW_F1C100S_DEV_BOOTROM], &f1c100s->bootrom);
 
