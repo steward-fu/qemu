@@ -19,17 +19,40 @@
 #define TYPE_AW_F1C100S "f1c100s"
 OBJECT_DECLARE_SIMPLE_TYPE(AwF1c100sState, AW_F1C100S)
 
-struct AwF1c100sState {
+enum {
+    AW_F1C100S_DEV_BOOTROM
 };
+
+struct AwF1c100sState {
+    DeviceState parent_obj;
+    ARMCPU cpu;
+    const hwaddr *memmap;
+    MemoryRegion bootrom;
+};
+
+static const hwaddr f1c100s_memmap[] = {
+    [AW_F1C100S_DEV_BOOTROM] = 0xFFFF0000
+};
+
+static struct arm_boot_info f1c100s_binfo = { 0 };
 
 static void aw_f1c100s_realize(DeviceState *dev, Error **errp)
 {
+    AwF1c100sState *s = AW_F1C100S(dev);
+
     printf("call %s()\n", __func__);
+
+    qdev_realize(DEVICE(&s->cpu), NULL, errp);
 }
 
 static void aw_f1c100s_init(Object *obj)
 {
+    AwF1c100sState *s = AW_F1C100S(obj);
+
     printf("call %s()\n", __func__);
+
+    s->memmap = f1c100s_memmap;
+    object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("arm926"));
 }
 
 static void aw_f1c100s_class_init(ObjectClass *oc, void *data)
@@ -58,7 +81,31 @@ type_init(aw_f1c100s_register_types)
 
 static void aw_f1c100s_board_init(MachineState *machine)
 {
+    AwF1c100sState *f1c100s = NULL;
+
     printf("call %s()\n", __func__);
+
+    f1c100s = AW_F1C100S(object_new(TYPE_AW_F1C100S));
+    object_property_add_child(OBJECT(machine), "soc", OBJECT(f1c100s));
+    object_unref(OBJECT(f1c100s));
+
+    qdev_realize(DEVICE(f1c100s), NULL, &error_abort);
+    memory_region_init_rom(&f1c100s->bootrom, NULL, "aw_f1c100s.bootrom", 64 * KiB, &error_fatal);
+    memory_region_add_subregion(get_system_memory(), f1c100s->memmap[AW_F1C100S_DEV_BOOTROM], &f1c100s->bootrom);
+
+    char *filename = qemu_find_file(QEMU_FILE_TYPE_BIOS, machine->firmware);
+    if (filename) {
+        printf("loading... \"%s\"\n", filename);
+        load_image_targphys(filename, f1c100s->memmap[AW_F1C100S_DEV_BOOTROM], 64 * KiB);
+        g_free(filename);
+
+        f1c100s_binfo.entry = f1c100s->memmap[AW_F1C100S_DEV_BOOTROM];
+    }
+
+    f1c100s_binfo.ram_size = machine->ram_size;
+    CPUARMState *env = &f1c100s->cpu.env;
+    env->boot_info = &f1c100s_binfo;
+    arm_load_kernel(&f1c100s->cpu, machine, &f1c100s_binfo);
 };
 
 static void aw_f1c100s_machine_init(MachineClass *mc)
