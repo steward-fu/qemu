@@ -17,6 +17,7 @@
 #include "sysemu/runstate.h"
 #include "target/arm/cpu.h"
 #include "hw/gpio/f1c100s.h"
+#include "hw/misc/f1c100s_ccu.h"
 
 #define TYPE_F1C100S "f1c100s"
 OBJECT_DECLARE_SIMPLE_TYPE(f1c100s_soc_state, F1C100S)
@@ -24,6 +25,7 @@ OBJECT_DECLARE_SIMPLE_TYPE(f1c100s_soc_state, F1C100S)
 int f1c100s_debug_level = TRACE_LEVEL;
 
 enum {
+    CCU_BASE,
     SRAM_BASE,
     GPIO_BASE,
     SDRAM_BASE,
@@ -37,10 +39,12 @@ struct f1c100s_soc_state {
     MemoryRegion sram;
     MemoryRegion bootrom;
 
+    f1c100s_ccu_state ccu;
     f1c100s_gpio_state gpio;
 };
 
 static const hwaddr f1c100s_memmap[] = {
+    [CCU_BASE]     = 0x01c20000,
     [SRAM_BASE]    = 0x00000000,
     [GPIO_BASE]    = 0x01c20800,
     [SDRAM_BASE]   = 0x80000000,
@@ -59,6 +63,9 @@ static void f1c100s_soc_realize(DeviceState *dev, Error **errp)
     memory_region_init_ram(&s->sram, OBJECT(dev), "sram", 40 * KiB, &error_abort);
     memory_region_add_subregion(get_system_memory(), s->memmap[SRAM_BASE], &s->sram);
 
+    sysbus_realize(SYS_BUS_DEVICE(&s->ccu), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->ccu), 0, s->memmap[CCU_BASE]);
+
     sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, s->memmap[GPIO_BASE]);
 }
@@ -70,6 +77,7 @@ static void f1c100s_soc_instance_init(Object *obj)
     trace("call %s()\n", __func__);
     s->memmap = f1c100s_memmap;
     object_initialize_child(obj, "cpu", &s->cpu, ARM_CPU_TYPE_NAME("f1c100s"));
+    object_initialize_child(obj, "ccu", &s->ccu, TYPE_F1C100S_CCU);
     object_initialize_child(obj, "gpio", &s->gpio, TYPE_F1C100S_GPIO);
 }
  
