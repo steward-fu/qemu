@@ -4,10 +4,10 @@
 #include "qom/object.h"
 #include "hw/sysbus.h"
 
-#define TYPE_AW_F1C100S_GPIO "f1c100s-gpio"
-OBJECT_DECLARE_SIMPLE_TYPE(AwF1c100sGpioState, AW_F1C100S_GPIO)
+#define TYPE_F1C100S_GPIO "f1c100s-gpio"
+OBJECT_DECLARE_SIMPLE_TYPE(f1c100s_gpio_state, F1C100S_GPIO)
 
-struct AwF1c100sGpioState {
+struct f1c100s_gpio_state {
     SysBusDevice parent_obj;
     MemoryRegion iomem;
 };
