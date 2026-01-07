@@ -6,3 +6,9 @@ build/
 scripts/qapi/__pycache__
 scripts/tracetool/__pycache__
 tests/qemu-iotests/__pycache__
+
+Makefile.fw
+main.bin
+main.s
+main.ld
+main.elf
