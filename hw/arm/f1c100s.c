@@ -19,6 +19,7 @@
 #include "hw/gpio/f1c100s.h"
 #include "hw/misc/f1c100s_ccu.h"
 #include "hw/intc/f1c100s.h"
+#include "hw/char/f1c100s_uart.h"
 
 #define TYPE_F1C100S "f1c100s"
 OBJECT_DECLARE_SIMPLE_TYPE(f1c100s_soc_state, F1C100S)
@@ -31,6 +32,9 @@ enum {
     INTC_BASE,
     GPIO_BASE,
     SDRAM_BASE,
+    UART0_BASE,
+    UART1_BASE,
+    UART2_BASE,
     BOOTROM_BASE
 };
 
@@ -44,6 +48,7 @@ struct f1c100s_soc_state {
     f1c100s_ccu_state ccu;
     f1c100s_intc_state intc;
     f1c100s_gpio_state gpio;
+    f1c100s_uart_state uart[3];
 };
 
 static const hwaddr f1c100s_memmap[] = {
@@ -52,13 +57,17 @@ static const hwaddr f1c100s_memmap[] = {
     [INTC_BASE]    = 0x01c20400,
     [GPIO_BASE]    = 0x01c20800,
     [SDRAM_BASE]   = 0x80000000,
+    [UART0_BASE]   = 0x01c25000,
+    [UART1_BASE]   = 0x01c25400,
+    [UART2_BASE]   = 0x01c25800,
     [BOOTROM_BASE] = 0xffff0000
 };
- 
+
 static struct arm_boot_info f1c100s_binfo = { 0 };
  
 static void f1c100s_soc_realize(DeviceState *dev, Error **errp)
 {
+    int i = 0;
     f1c100s_soc_state *s = F1C100S(dev);
 
     trace("call %s()\n", __func__);
@@ -76,6 +85,12 @@ static void f1c100s_soc_realize(DeviceState *dev, Error **errp)
 
     sysbus_realize(SYS_BUS_DEVICE(&s->gpio), &error_fatal);
     sysbus_mmio_map(SYS_BUS_DEVICE(&s->gpio), 0, s->memmap[GPIO_BASE]);
+
+    for (i = 0; i < 3; i++) {
+        qdev_prop_set_chr(DEVICE(&s->uart[i]), "chardev", serial_hd(i));
+        sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &error_fatal);
+        sysbus_mmio_map(SYS_BUS_DEVICE(&s->uart[i]), 0, s->memmap[UART0_BASE + i]);
+    }
 }
  
 static void f1c100s_soc_instance_init(Object *obj)
@@ -88,6 +103,9 @@ static void f1c100s_soc_instance_init(Object *obj)
     object_initialize_child(obj, "ccu", &s->ccu, TYPE_F1C100S_CCU);
     object_initialize_child(obj, "intc", &s->intc, TYPE_F1C100S_INTC);
     object_initialize_child(obj, "gpio", &s->gpio, TYPE_F1C100S_GPIO);
+    object_initialize_child(obj, "uart0", &s->uart[0], TYPE_F1C100S_UART);
+    object_initialize_child(obj, "uart1", &s->uart[1], TYPE_F1C100S_UART);
+    object_initialize_child(obj, "uart2", &s->uart[2], TYPE_F1C100S_UART);
 }
  
 static void f1c100s_soc_class_init(ObjectClass *oc, void *data)
