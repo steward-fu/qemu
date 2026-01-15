@@ -74,8 +74,12 @@ static void f1c100s_intc_set_irq(void *opaque, int irq, int level)
 
     if (level) {
         s->pending |= (1ULL << irq);
-        f1c100s_intc_update(s);
     }
+    else {
+        s->pending &= ~(1ULL << irq);
+    }
+
+    f1c100s_intc_update(s);
 }
 
 static void f1c100s_intc_reset(DeviceState *dev)
