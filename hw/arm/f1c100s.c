@@ -21,6 +21,7 @@
 #include "hw/intc/f1c100s.h"
 #include "hw/char/f1c100s_uart.h"
 #include "hw/timer/f1c100s.h"
+#include "hw/ssi/f1c100s.h"
 
 #define TYPE_F1C100S "f1c100s"
 OBJECT_DECLARE_SIMPLE_TYPE(f1c100s_soc_state, F1C100S)
@@ -37,6 +38,8 @@ enum {
     UART0_BASE,
     UART1_BASE,
     UART2_BASE,
+    SPI0_BASE,
+    SPI1_BASE,
     BOOTROM_BASE
 };
 
@@ -48,6 +51,7 @@ struct f1c100s_soc_state {
     MemoryRegion bootrom;
 
     f1c100s_ccu_state ccu;
+    f1c100s_spi_state spi[2];
     f1c100s_intc_state intc;
     f1c100s_gpio_state gpio;
     f1c100s_timer_state timer;
@@ -64,6 +68,8 @@ static const hwaddr f1c100s_memmap[] = {
     [UART0_BASE]   = 0x01c25000,
     [UART1_BASE]   = 0x01c25400,
     [UART2_BASE]   = 0x01c25800,
+    [SPI0_BASE]    = 0x01c05000,
+    [SPI1_BASE]    = 0x01c06000,
     [BOOTROM_BASE] = 0xffff0000
 };
 
@@ -107,6 +113,26 @@ static void f1c100s_soc_realize(DeviceState *dev, Error **errp)
         sysbus_realize(SYS_BUS_DEVICE(&s->uart[i]), &error_fatal);
         sysbus_mmio_map(SYS_BUS_DEVICE(&s->uart[i]), 0, s->memmap[UART0_BASE + i]);
     }
+
+    sysbus_realize(SYS_BUS_DEVICE(&s->spi[0]), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[0]), 0, s->memmap[SPI0_BASE]);
+
+    sysbus_realize(SYS_BUS_DEVICE(&s->spi[1]), &error_fatal);
+    sysbus_mmio_map(SYS_BUS_DEVICE(&s->spi[1]), 0, s->memmap[SPI1_BASE]);
+
+    DriveInfo *dinfo = drive_get(IF_MTD, 0, 0);
+    if (dinfo) {
+        DeviceState *spi_flash;
+        BusState *spi_bus;
+
+        spi_flash = qdev_new("w25q64");
+        qdev_prop_set_drive(spi_flash, "drive", blk_by_legacy_dinfo(dinfo));
+        spi_bus = qdev_get_child_bus(DEVICE(&s->spi[0]), "ssi");
+        qdev_realize_and_unref(spi_flash, spi_bus, &error_fatal);
+
+        qemu_irq cs_line = qdev_get_gpio_in_named(spi_flash, SSI_GPIO_CS, 0);
+        sysbus_connect_irq(SYS_BUS_DEVICE(&s->spi[0]), 0, cs_line);
+    }
 }
  
 static void f1c100s_soc_instance_init(Object *obj)
@@ -123,6 +149,8 @@ static void f1c100s_soc_instance_init(Object *obj)
     object_initialize_child(obj, "uart0", &s->uart[0], TYPE_F1C100S_UART);
     object_initialize_child(obj, "uart1", &s->uart[1], TYPE_F1C100S_UART);
     object_initialize_child(obj, "uart2", &s->uart[2], TYPE_F1C100S_UART);
+    object_initialize_child(obj, "spi[0]", &s->spi[0], TYPE_F1C100S_SPI);
+    object_initialize_child(obj, "spi[1]", &s->spi[1], TYPE_F1C100S_SPI);
 }
  
 static void f1c100s_soc_class_init(ObjectClass *oc, void *data)
